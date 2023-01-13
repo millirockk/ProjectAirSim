@@ -50,6 +50,8 @@ class Link {
 
   friend class EnvActor;
 
+  friend class PayloadActor;
+
   Link(const Logger& logger, const TopicManager& topic_manager,
        const std::string& parent_topic_path);
 

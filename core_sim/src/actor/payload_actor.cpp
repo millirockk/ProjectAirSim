@@ -1,0 +1,385 @@
+// Copyright (C) Microsoft Corporation. All rights reserved.
+
+#include "core_sim/actor/payload_actor.hpp"
+
+#include <memory>
+
+#include "actor_impl.hpp"
+#include "constant.hpp"
+#include "core_sim/logger.hpp"
+#include "core_sim/message/collision_info_message.hpp"
+#include "core_sim/message/kinematics_message.hpp"
+#include "core_sim/runtime_components.hpp"
+#include "json.hpp"
+
+namespace microsoft {
+namespace projectairsim {
+
+using json = nlohmann::json;
+
+class PayloadActor::Loader {
+ public:
+  explicit Loader(PayloadActor::Impl& impl);
+
+  void Load(const json& json);
+
+ private:
+  void LoadLinks(const json& json);
+
+  Link LoadLink(const json& json);
+
+  void LoadJoints(const json& json);
+
+  Joint LoadJoint(const json& json);
+
+  void LoadPhysicsType(const json& json);
+
+  PayloadActor::Impl& impl_;
+};
+
+class PayloadActor::Impl : public ActorImpl {
+ public:
+  Impl(const std::string& id, const Pose& origin, const Logger& logger,
+       const TopicManager& topic_manager, const std::string& parent_topic_path,
+       const ServiceManager& service_manager,
+       const StateManager& state_manager);
+
+  void Load(ConfigJson config_json);
+
+  const std::vector<Link>& GetLinks();
+
+  const std::vector<Joint>& GetJoints();
+
+  void LoadKinematics();
+
+  const Kinematics& GetKinematics() const;
+
+  const CollisionInfo& GetCollisionInfo() const;
+  void UpdateCollisionInfo(const CollisionInfo& collision_info);
+  void SetHasCollided(bool has_collided);
+
+  const Pose& GetPoseOffset() const;
+
+  void SetKinematics(const Kinematics& kinematics);
+
+  const PhysicsType& GetPhysicsType() const;
+  void SetPhysicsType(const PhysicsType& phys_type);
+  const std::string& GetPhysicsConnectionSettings() const;
+  void SetPhysicsConnectionSettings(const std::string& phys_conn_settings);
+
+  void CreateTopics();
+
+  void OnBeginUpdate() override;
+
+  void OnEndUpdate() override;
+
+ private:
+  friend class PayloadActor::Loader;
+
+  PayloadActor::Loader loader_;
+
+  std::vector<Link> links_;
+  std::vector<Joint> joints_;
+
+  PhysicsType physics_type_;
+  std::string physics_connection_settings_;
+
+  CollisionInfo collision_info_;
+  Kinematics kinematics_;
+  Pose relative_offset_;
+  bool in_attached_state_ = false;
+
+  Topic payload_actor_kinematic_topic;
+  Topic collision_info_topic_;
+  std::vector<std::reference_wrapper<Topic>> topics_;
+};
+
+// -----------------------------------------------------------------------------
+// class PayloadActor
+
+PayloadActor::PayloadActor() : Actor(nullptr) {}
+
+PayloadActor::PayloadActor(const std::string& id, const Pose& origin,
+                           const Logger& logger,
+                           const TopicManager& topic_manager,
+                           const std::string& parent_topic_path,
+                           const ServiceManager& service_manager,
+                           const StateManager& state_manager)
+    : Actor(std::shared_ptr<ActorImpl>(new PayloadActor::Impl(
+          id, origin, logger, topic_manager, parent_topic_path, service_manager,
+          state_manager))) {}
+
+void PayloadActor::Load(ConfigJson config_json) {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())->Load(config_json);
+}
+
+const std::vector<Link>& PayloadActor::GetLinks() const {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetLinks();
+}
+
+const std::vector<Joint>& PayloadActor::GetJoints() const {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetJoints();
+}
+
+const Kinematics& PayloadActor::GetKinematics() const {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetKinematics();
+}
+
+const Transform& PayloadActor::GetPoseOffset() const {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetPoseOffset();
+}
+
+void PayloadActor::SetKinematics(const Kinematics& kinematics) {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())
+      ->SetKinematics(kinematics);
+}
+
+const PhysicsType& PayloadActor::GetPhysicsType() const {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetPhysicsType();
+}
+
+void PayloadActor::SetPhysicsType(const PhysicsType& phys_type) {
+  static_cast<PayloadActor::Impl*>(pimpl_.get())->SetPhysicsType(phys_type);
+}
+
+const std::string& PayloadActor::GetPhysicsConnectionSettings() const {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())
+      ->GetPhysicsConnectionSettings();
+}
+
+void PayloadActor::SetPhysicsConnectionSettings(
+    const std::string& phys_conn_settings) {
+  static_cast<PayloadActor::Impl*>(pimpl_.get())
+      ->SetPhysicsConnectionSettings(phys_conn_settings);
+}
+
+void PayloadActor::BeginUpdate() {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())->BeginUpdate();
+}
+
+void PayloadActor::EndUpdate() {
+  static_cast<PayloadActor::Impl*>(pimpl_.get())->EndUpdate();
+}
+
+const CollisionInfo& PayloadActor::GetCollisionInfo() const {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetCollisionInfo();
+}
+
+void PayloadActor::UpdateCollisionInfo(const CollisionInfo& collision_info) {
+  static_cast<PayloadActor::Impl*>(pimpl_.get())
+      ->UpdateCollisionInfo(collision_info);
+}
+
+void PayloadActor::SetHasCollided(bool has_collided) {
+  static_cast<PayloadActor::Impl*>(pimpl_.get())->SetHasCollided(has_collided);
+}
+
+// -----------------------------------------------------------------------------
+// class PayloadActor::Impl
+
+PayloadActor::Impl::Impl(const std::string& id, const Pose& origin,
+                         const Logger& logger,
+                         const TopicManager& topic_manager,
+                         const std::string& parent_topic_path,
+                         const ServiceManager& service_manager,
+                         const StateManager& state_manager)
+    : ActorImpl(ActorType::kPayloadActor, id, origin,
+                Constant::Component::payload_actor, logger, topic_manager,
+                parent_topic_path, service_manager, state_manager),
+      loader_(*this) {
+  SetTopicPath();
+  CreateTopics();
+}
+
+void PayloadActor::Impl::CreateTopics() {
+  payload_actor_kinematic_topic =
+      Topic("actual_kinematics", topic_path_, TopicType::kPublished, 0,
+            MessageType::kKinematics);
+
+  collision_info_topic_ =
+      Topic("collision_info", topic_path_, TopicType::kPublished, 0,
+            MessageType::kCollisionInfo);
+
+  topics_.push_back(payload_actor_kinematic_topic);
+  topics_.push_back(collision_info_topic_);
+}
+
+void PayloadActor::Impl::Load(ConfigJson config_json) {
+  // Load PayloadActor from JSON config
+  json json = config_json;
+  loader_.Load(json);
+
+  // Initialize kinematics from loaded origin
+  LoadKinematics();
+}
+
+const std::vector<Link>& PayloadActor::Impl::GetLinks() { return links_; }
+
+const std::vector<Joint>& PayloadActor::Impl::GetJoints() { return joints_; }
+
+void PayloadActor::Impl::LoadKinematics() {
+  kinematics_.pose.position = origin_.translation_;
+  kinematics_.pose.orientation = origin_.rotation_;
+}
+
+const Kinematics& PayloadActor::Impl::GetKinematics() const {
+  return kinematics_;
+}
+
+const Transform& PayloadActor::Impl::GetPoseOffset() const {
+  return relative_offset_;
+}
+
+void PayloadActor::Impl::SetKinematics(const Kinematics& kinematics) {
+  kinematics_ = kinematics;
+}
+
+const PhysicsType& PayloadActor::Impl::GetPhysicsType() const {
+  return physics_type_;
+}
+
+void PayloadActor::Impl::SetPhysicsType(const PhysicsType& phys_type) {
+  physics_type_ = phys_type;
+}
+
+const std::string& PayloadActor::Impl::GetPhysicsConnectionSettings() const {
+  return physics_connection_settings_;
+}
+
+void PayloadActor::Impl::SetPhysicsConnectionSettings(
+    const std::string& phys_conn_settings) {
+  physics_connection_settings_ = phys_conn_settings;
+}
+
+void PayloadActor::Impl::OnBeginUpdate() {
+  // Register all topics to be ready for publish/subscribe calls
+  for (const auto& topic_ref : topics_) {
+    topic_manager_.RegisterTopic(topic_ref.get());
+  }
+}
+
+void PayloadActor::Impl::OnEndUpdate() {
+  // Unregister all topics
+  for (const auto& topic_ref : topics_) {
+    topic_manager_.UnregisterTopic(topic_ref.get());
+  }
+}
+
+const CollisionInfo& PayloadActor::Impl::GetCollisionInfo() const {
+  return collision_info_;
+}
+
+void PayloadActor::Impl::UpdateCollisionInfo(
+    const CollisionInfo& collision_info) {
+  std::lock_guard<std::mutex> lock(update_lock_);
+  collision_info_ = collision_info;
+
+  // Publish a collision info topic every time a collision is detected
+  if (collision_info_.has_collided) {
+    CollisionInfoMessage collision_info_msg(collision_info_);
+    topic_manager_.PublishTopic(collision_info_topic_, collision_info_msg);
+  }
+}
+
+void PayloadActor::Impl::SetHasCollided(bool has_collided) {
+  std::lock_guard<std::mutex> lock(update_lock_);
+  collision_info_.has_collided = has_collided;
+}
+
+// class PayloadActor::Loader
+PayloadActor::Loader::Loader(PayloadActor::Impl& impl) : impl_(impl) {}
+
+void PayloadActor::Loader::Load(const json& json) {
+  LoadLinks(json);
+  LoadJoints(json);
+
+  impl_.is_loaded_ = true;
+}
+
+void PayloadActor::Loader::LoadLinks(const json& json) {
+  impl_.logger_.LogVerbose(impl_.name_, "[%s] Loading 'links'.",
+                           impl_.id_.c_str());
+
+  auto links_json = JsonUtils::GetArray(json, Constant::Config::links);
+  if (JsonUtils::IsEmptyArray(links_json)) {
+    impl_.logger_.LogWarning(impl_.name_, "[%s] 'links' missing or empty.",
+                             impl_.id_.c_str());
+  }
+
+  try {
+    std::transform(links_json.begin(), links_json.end(),
+                   std::back_inserter(impl_.links_),
+                   [this](auto& json) { return LoadLink(json); });
+  } catch (...) {
+    impl_.links_.clear();
+    throw;
+  }
+  impl_.logger_.LogVerbose(impl_.name_, "[%s] 'links' loaded.",
+                           impl_.id_.c_str());
+}
+
+Link PayloadActor::Loader::LoadLink(const json& json) {
+  Link link(impl_.logger_, impl_.topic_manager_, impl_.topic_path_ + "/links");
+  link.Load(json);
+
+  return link;
+}
+
+void PayloadActor::Loader::LoadJoints(const json& json) {
+  impl_.logger_.LogVerbose(impl_.name_, "[%s] Loading 'joints'.",
+                           impl_.id_.c_str());
+
+  auto joints_json = JsonUtils::GetArray(json, Constant::Config::joints);
+  if (JsonUtils::IsEmptyArray(joints_json)) {
+    impl_.logger_.LogWarning(impl_.name_, "[%s] 'joints' missing or empty.",
+                             impl_.id_.c_str());
+  }
+
+  try {
+    std::transform(joints_json.begin(), joints_json.end(),
+                   std::back_inserter(impl_.joints_),
+                   [this](auto& json) { return LoadJoint(json); });
+  } catch (...) {
+    impl_.joints_.clear();
+    throw;
+  }
+
+  impl_.logger_.LogVerbose(impl_.name_, "[%s] 'joints' loaded.",
+                           impl_.id_.c_str());
+}
+
+Joint PayloadActor::Loader::LoadJoint(const json& json) {
+  Joint joint(impl_.logger_, impl_.topic_manager_,
+              impl_.topic_path_ + "/joints");
+  joint.Load(json);
+  return joint;
+}
+
+void PayloadActor::Loader::LoadPhysicsType(const json& json) {
+  impl_.logger_.LogVerbose(impl_.name_, "[%s] Loading 'physics-type'.",
+                           impl_.id_.c_str());
+  auto physics_type = JsonUtils::GetIdentifier(
+      json, Constant::Config::physics_type, Constant::Config::non_physics);
+
+  if (physics_type == Constant::Config::non_physics) {
+    impl_.physics_type_ = PhysicsType::kNonPhysics;
+  } else if (physics_type == Constant::Config::fast_physics) {
+    impl_.physics_type_ = PhysicsType::kFastPhysics;
+  } else if (physics_type == Constant::Config::matlab_physics) {
+    impl_.physics_type_ = PhysicsType::kMatlabPhysics;
+  } else if (physics_type == Constant::Config::unreal_physics) {
+    impl_.physics_type_ = PhysicsType::kUnrealPhysics;
+  } else {
+    impl_.physics_type_ = PhysicsType::kNonPhysics;
+    impl_.logger_.LogWarning(
+        impl_.name_,
+        "[%s] invalid 'physics-type'. Using default non-physics type.",
+        impl_.id_.c_str());
+  }
+
+  impl_.logger_.LogVerbose(impl_.name_, "[%s] 'physics-type' loaded.",
+                           impl_.id_.c_str());
+}
+
+}  // namespace projectairsim
+}  // namespace microsoft

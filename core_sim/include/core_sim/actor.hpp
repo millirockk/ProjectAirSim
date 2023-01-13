@@ -14,7 +14,7 @@ namespace projectairsim {
 class ActorImpl;
 class ConfigJson;
 
-enum class ActorType { kRobot = 0, kEnvActor = 1 };
+enum class ActorType { kRobot = 0, kEnvActor = 1, kPayloadActor = 2 };
 
 class Actor {
  public:

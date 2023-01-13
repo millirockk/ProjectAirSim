@@ -46,6 +46,7 @@ class Topic {
   friend class Gps;
   friend class EnvActor;
   friend class Battery;
+  friend class PayloadActor;
   friend class ViewportCameraImpl;
 
   Topic(const std::string& name, const std::string& path, TopicType type,

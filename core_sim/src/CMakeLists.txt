@@ -60,6 +60,7 @@ add_library(
     actor.cpp
     actor/robot.cpp
     actor/env_actor.cpp
+    actor/payload_actor.cpp
     trajectory.cpp
     link.cpp
     link/inertial.cpp

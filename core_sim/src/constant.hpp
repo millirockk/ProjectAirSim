@@ -22,6 +22,8 @@ class Constant {
         "microsoft::projectairsim::actor::robot";
     static constexpr const char* env_actor =
         "microsoft::projectairsim::actor::env_actor";
+    static constexpr const char* payload_actor =
+        "microsoft::projectairsim::actor::payload_actor";
     static constexpr const char* trajectory =
         "microsoft::projectairsim::trajectory";
     static constexpr const char* link = "microsoft::projectairsim::link";
