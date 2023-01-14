@@ -59,6 +59,10 @@ class Scene {
 
   const std::vector<std::reference_wrapper<Actor>>& GetEnvActors() const;
 
+  const std::vector<std::reference_wrapper<Actor>>& GetPayloadActors() const;
+
+  int GetPayloadActorIndex(const std::string& payload_actor_name);
+
   void SetCallbackPhysicsStart(const std::function<void()>& callback);
 
   void SetCallbackPhysicsSetWrenches(const std::function<void()>& callback);

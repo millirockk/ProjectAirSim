@@ -32,8 +32,6 @@ class PayloadActor::Loader {
 
   Joint LoadJoint(const json& json);
 
-  void LoadPhysicsType(const json& json);
-
   PayloadActor::Impl& impl_;
 };
 
@@ -63,9 +61,6 @@ class PayloadActor::Impl : public ActorImpl {
   void SetKinematics(const Kinematics& kinematics);
 
   const PhysicsType& GetPhysicsType() const;
-  void SetPhysicsType(const PhysicsType& phys_type);
-  const std::string& GetPhysicsConnectionSettings() const;
-  void SetPhysicsConnectionSettings(const std::string& phys_conn_settings);
 
   void CreateTopics();
 
@@ -81,8 +76,7 @@ class PayloadActor::Impl : public ActorImpl {
   std::vector<Link> links_;
   std::vector<Joint> joints_;
 
-  PhysicsType physics_type_;
-  std::string physics_connection_settings_;
+  PhysicsType physics_type_ = PhysicsType::kFastPhysics;
 
   CollisionInfo collision_info_;
   Kinematics kinematics_;
@@ -136,21 +130,6 @@ void PayloadActor::SetKinematics(const Kinematics& kinematics) {
 
 const PhysicsType& PayloadActor::GetPhysicsType() const {
   return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetPhysicsType();
-}
-
-void PayloadActor::SetPhysicsType(const PhysicsType& phys_type) {
-  static_cast<PayloadActor::Impl*>(pimpl_.get())->SetPhysicsType(phys_type);
-}
-
-const std::string& PayloadActor::GetPhysicsConnectionSettings() const {
-  return static_cast<PayloadActor::Impl*>(pimpl_.get())
-      ->GetPhysicsConnectionSettings();
-}
-
-void PayloadActor::SetPhysicsConnectionSettings(
-    const std::string& phys_conn_settings) {
-  static_cast<PayloadActor::Impl*>(pimpl_.get())
-      ->SetPhysicsConnectionSettings(phys_conn_settings);
 }
 
 void PayloadActor::BeginUpdate() {
@@ -236,19 +215,6 @@ void PayloadActor::Impl::SetKinematics(const Kinematics& kinematics) {
 
 const PhysicsType& PayloadActor::Impl::GetPhysicsType() const {
   return physics_type_;
-}
-
-void PayloadActor::Impl::SetPhysicsType(const PhysicsType& phys_type) {
-  physics_type_ = phys_type;
-}
-
-const std::string& PayloadActor::Impl::GetPhysicsConnectionSettings() const {
-  return physics_connection_settings_;
-}
-
-void PayloadActor::Impl::SetPhysicsConnectionSettings(
-    const std::string& phys_conn_settings) {
-  physics_connection_settings_ = phys_conn_settings;
 }
 
 void PayloadActor::Impl::OnBeginUpdate() {
@@ -353,32 +319,6 @@ Joint PayloadActor::Loader::LoadJoint(const json& json) {
               impl_.topic_path_ + "/joints");
   joint.Load(json);
   return joint;
-}
-
-void PayloadActor::Loader::LoadPhysicsType(const json& json) {
-  impl_.logger_.LogVerbose(impl_.name_, "[%s] Loading 'physics-type'.",
-                           impl_.id_.c_str());
-  auto physics_type = JsonUtils::GetIdentifier(
-      json, Constant::Config::physics_type, Constant::Config::non_physics);
-
-  if (physics_type == Constant::Config::non_physics) {
-    impl_.physics_type_ = PhysicsType::kNonPhysics;
-  } else if (physics_type == Constant::Config::fast_physics) {
-    impl_.physics_type_ = PhysicsType::kFastPhysics;
-  } else if (physics_type == Constant::Config::matlab_physics) {
-    impl_.physics_type_ = PhysicsType::kMatlabPhysics;
-  } else if (physics_type == Constant::Config::unreal_physics) {
-    impl_.physics_type_ = PhysicsType::kUnrealPhysics;
-  } else {
-    impl_.physics_type_ = PhysicsType::kNonPhysics;
-    impl_.logger_.LogWarning(
-        impl_.name_,
-        "[%s] invalid 'physics-type'. Using default non-physics type.",
-        impl_.id_.c_str());
-  }
-
-  impl_.logger_.LogVerbose(impl_.name_, "[%s] 'physics-type' loaded.",
-                           impl_.id_.c_str());
 }
 
 }  // namespace projectairsim

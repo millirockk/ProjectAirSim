@@ -11,6 +11,7 @@
 #include "component.hpp"
 #include "constant.hpp"
 #include "core_sim/actor/env_actor.hpp"
+#include "core_sim/actor/payload_actor.hpp"
 #include "core_sim/actor/robot.hpp"
 #include "core_sim/clock.hpp"
 #include "core_sim/error.hpp"
@@ -47,6 +48,10 @@ class Scene::Loader {
   void LoadEnvActorsWithJSON(const json& json);
 
   std::unique_ptr<Actor> LoadEnvActorWithJSON(const json& json);
+
+  void LoadPayloadActorsWithJSON(const json& json);
+
+  std::unique_ptr<Actor> LoadPayloadActorWithJSON(const json& json);
 
   void LoadClockSettings(const json& json);
 
@@ -89,6 +94,10 @@ class Scene::Impl : public ComponentWithTopicsAndServiceMethods {
   int GetActorIndex(const std::string& actor_id);
 
   int GetEnvActorIndex(const std::string& env_actor_name);
+
+  const std::vector<std::reference_wrapper<Actor>>& GetPayloadActors() const;
+
+  int GetPayloadActorIndex(const std::string& payload_actor_name);
 
   std::shared_ptr<Trajectory> GetTrajectoryPtrByName(
       const std::string& traj_name);
@@ -193,10 +202,13 @@ class Scene::Impl : public ComponentWithTopicsAndServiceMethods {
   Scene::Loader loader_;
   std::vector<std::unique_ptr<Actor>> actors_;
   std::vector<std::reference_wrapper<Actor>> actors_ref_;
+  std::unordered_map<std::string, int> actor_index_by_id_;
   std::vector<std::unique_ptr<Actor>> env_actors_;
   std::vector<std::reference_wrapper<Actor>> env_actors_ref_;
   std::unordered_map<std::string, int> env_actor_index_by_id_;
-  std::unordered_map<std::string, int> actor_index_by_id_;
+  std::vector<std::unique_ptr<Actor>> payload_actors_;
+  std::vector<std::reference_wrapper<Actor>> payload_actors_ref_;
+  std::unordered_map<std::string, int> payload_actor_index_by_id_;
   std::function<void(const Vector3&)> wind_velocity_updated_callback_;
   std::function<void(bool)> enable_unreal_viewport_camera_callback_;
   std::function<void()> physics_start_callback_;
@@ -257,6 +269,15 @@ int Scene::GetActorIndex(const std::string& actor_id) {
 
 int Scene::GetEnvActorIndex(const std::string& env_actor_name) {
   return pimpl_->GetEnvActorIndex(env_actor_name);
+}
+
+const std::vector<std::reference_wrapper<Actor>>& Scene::GetPayloadActors()
+    const {
+  return pimpl_->GetPayloadActors();
+}
+
+int Scene::GetPayloadActorIndex(const std::string& payload_actor_name) {
+  return pimpl_->GetPayloadActorIndex(payload_actor_name);
 }
 
 std::shared_ptr<Trajectory> Scene::GetTrajectoryPtrByName(
@@ -447,6 +468,21 @@ int Scene::Impl::GetEnvActorIndex(const std::string& env_actor_name) {
   }
 }
 
+const std::vector<std::reference_wrapper<Actor>>&
+Scene::Impl::GetPayloadActors() const {
+  return payload_actors_ref_;
+}
+
+int Scene::Impl::GetPayloadActorIndex(const std::string& payload_actor_name) {
+  auto payload_actor_idx_itr =
+      payload_actor_index_by_id_.find(payload_actor_name);
+  if (payload_actor_idx_itr != payload_actor_index_by_id_.end()) {
+    return payload_actor_idx_itr->second;
+  } else {
+    return -1;
+  }
+}
+
 std::shared_ptr<Trajectory> Scene::Impl::GetTrajectoryPtrByName(
     const std::string& traj_name) {
   for (auto trajectory : trajectories_) {
@@ -615,6 +651,13 @@ void Scene::Impl::OnBeginUpdate() {
       env_actor_temp.BeginUpdate();
     }
   }
+
+  for (auto& payload_actor : payload_actors_) {
+    if (payload_actor->GetType() == ActorType::kPayloadActor) {
+      auto& payload_actor_temp = static_cast<PayloadActor&>(*payload_actor);
+      payload_actor_temp.BeginUpdate();
+    }
+  }
 }
 
 void Scene::Impl::OnEndUpdate() {
@@ -629,6 +672,13 @@ void Scene::Impl::OnEndUpdate() {
     if (env_actor->GetType() == ActorType::kEnvActor) {
       auto& env_actor_temp = static_cast<EnvActor&>(*env_actor);
       env_actor_temp.EndUpdate();
+    }
+  }
+
+  for (auto& payload_actor : payload_actors_) {
+    if (payload_actor->GetType() == ActorType::kPayloadActor) {
+      auto& payload_actor_temp = static_cast<PayloadActor&>(*payload_actor);
+      payload_actor_temp.EndUpdate();
     }
   }
 }
@@ -783,6 +833,7 @@ bool Scene::Impl::SetWindVelocity(float v_x, float v_y, float v_z) {
   return true;
 }
 
+Vector3 Scene::Impl::GetWindVelocity() { return Environment::wind_velocity; }
 Vector3 Scene::Impl::GetWindVelocity() { return Environment::wind_velocity; }
 
 std::string Scene::Impl::CallBackAfter(int t_secs) {
@@ -1075,11 +1126,13 @@ void Scene::Loader::LoadSceneWithJSON(const json& json) {
   // Load is-gis-scene, to know whether GIS tiles should be rendered
   LoadGISSettings(json);
 
-  // Load all of the actors and env actors in the scene from their config JSON
-  // files
+  // Load all of the actors, env actors, and payload actors in the scene from
+  // their config JSON files
   LoadActorsWithJSON(json);
 
   LoadEnvActorsWithJSON(json);
+
+  LoadPayloadActorsWithJSON(json);
 
   LoadDistributedSimSettings(json);
 
@@ -1150,14 +1203,83 @@ void Scene::Loader::LoadEnvActorsWithJSON(const json& json) {
                              impl_.id_.c_str());
   }
 
-  std::transform(env_actors_json.begin(), env_actors_json.end(),
-                 std::back_inserter(impl_.env_actors_),
-                 [this](auto& json) { return LoadEnvActorWithJSON(json); });
+  try {
+    std::transform(env_actors_json.begin(), env_actors_json.end(),
+                   std::back_inserter(impl_.env_actors_),
+                   [this](auto& json) { return LoadEnvActorWithJSON(json); });
 
-  impl_.env_actors_ref_ = ToRefs(impl_.env_actors_);
+    impl_.env_actors_ref_ = ToRefs(impl_.env_actors_);
 
-  for (int i = 0; i < impl_.env_actors_.size(); ++i) {
-    impl_.env_actor_index_by_id_.emplace(impl_.env_actors_[i]->GetID(), i);
+    for (int i = 0; i < impl_.env_actors_.size(); ++i) {
+      impl_.env_actor_index_by_id_.emplace(impl_.env_actors_[i]->GetID(), i);
+    }
+  } catch (...) {
+    impl_.env_actors_.clear();
+    impl_.env_actors_ref_.clear();
+    impl_.env_actor_index_by_id_.clear();
+    throw;
+  }
+}
+
+void Scene::Loader::LoadPayloadActorsWithJSON(const json& json) {
+  impl_.logger_.LogVerbose(impl_.name_, "[%s] Loading 'Payload Actors'.",
+                           impl_.id_.c_str());
+  auto payload_actors_json =
+      JsonUtils::GetArray(json, Constant::Config::payload_actors);
+  if (JsonUtils::IsEmptyArray(payload_actors_json)) {
+    impl_.logger_.LogVerbose(impl_.name_,
+                             "[%s] 'payload-actors' missing or empty.",
+                             impl_.id_.c_str());
+  }
+
+  try {
+    std::transform(
+        payload_actors_json.begin(), payload_actors_json.end(),
+        std::back_inserter(impl_.payload_actors_),
+        [this](auto& json) { return LoadPayloadActorWithJSON(json); });
+
+    impl_.payload_actors_ref_ = ToRefs(impl_.payload_actors_);
+
+    for (int i = 0; i < impl_.payload_actors_.size(); ++i) {
+      impl_.payload_actor_index_by_id_.emplace(
+          impl_.payload_actors_[i]->GetID(), i);
+    }
+  } catch (...) {
+    impl_.payload_actors_.clear();
+    impl_.payload_actors_ref_.clear();
+    impl_.payload_actor_index_by_id_.clear();
+    throw;
+  }
+}
+
+void Scene::Loader::LoadPayloadActorsWithJSON(const json& json) {
+  impl_.logger_.LogVerbose(impl_.name_, "[%s] Loading 'Payload Actors'.",
+                           impl_.id_.c_str());
+  auto payload_actors_json =
+      JsonUtils::GetArray(json, Constant::Config::payload_actors);
+  if (JsonUtils::IsEmptyArray(payload_actors_json)) {
+    impl_.logger_.LogVerbose(impl_.name_,
+                             "[%s] 'payload-actors' missing or empty.",
+                             impl_.id_.c_str());
+  }
+
+  try {
+    std::transform(
+        payload_actors_json.begin(), payload_actors_json.end(),
+        std::back_inserter(impl_.payload_actors_),
+        [this](auto& json) { return LoadPayloadActorWithJSON(json); });
+
+    impl_.payload_actors_ref_ = ToRefs(impl_.payload_actors_);
+
+    for (int i = 0; i < impl_.payload_actors_.size(); ++i) {
+      impl_.payload_actor_index_by_id_.emplace(
+          impl_.payload_actors_[i]->GetID(), i);
+    }
+  } catch (...) {
+    impl_.payload_actors_.clear();
+    impl_.payload_actors_ref_.clear();
+    impl_.payload_actor_index_by_id_.clear();
+    throw;
   }
 }
 
@@ -1400,7 +1522,8 @@ std::unique_ptr<Actor> Scene::Loader::LoadEnvActorWithJSON(const json& json) {
   auto id = GetActorID(json);
   auto type = GetActorType(json, id);
   auto origin = GetActorOrigin(json, id);
-  auto env_actor_config = JsonUtils::GetJsonObject(json, "env-actor-config");
+  auto env_actor_config =
+      JsonUtils::GetJsonObject(json, Constant::Config::env_actor_config);
 
   impl_.logger_.LogVerbose(impl_.name_, "[%s][%s] Loading 'Enviroment Actor'.",
                            impl_.id_.c_str(), id.c_str());
@@ -1426,6 +1549,37 @@ std::unique_ptr<Actor> Scene::Loader::LoadEnvActorWithJSON(const json& json) {
   }
 
   impl_.logger_.LogVerbose(impl_.name_, "[%s][%s] 'Environment Actor' loaded.",
+                           impl_.id_.c_str(), id.c_str());
+}
+
+std::unique_ptr<Actor> Scene::Loader::LoadPayloadActorWithJSON(
+    const json& json) {
+  auto id = GetActorID(json);
+  auto type = GetActorType(json, id);
+  auto origin = GetActorOrigin(json, id);
+  auto payload_actor_config =
+      JsonUtils::GetJsonObject(json, Constant::Config::payload_actor_config);
+
+  impl_.logger_.LogVerbose(impl_.name_, "[%s][%s] Loading 'Payload Actor'.",
+                           impl_.id_.c_str(), id.c_str());
+
+  if (type == Constant::Config::payload_actor) {
+    auto payload_actor =
+        new PayloadActor(id, origin, impl_.logger_, impl_.topic_manager_,
+                         impl_.topic_path_ + "/payload_actors",
+                         impl_.service_manager_, impl_.state_manager_);
+
+    payload_actor->Load(payload_actor_config);
+
+    return std::unique_ptr<Actor>(payload_actor);
+
+  } else {
+    impl_.logger_.LogError(impl_.name_, "[%s] Invalid Payload Actor type '%s'.",
+                           impl_.id_.c_str(), type.c_str());
+    throw Error("Invalid actor type.");
+  }
+
+  impl_.logger_.LogVerbose(impl_.name_, "[%s][%s] 'Payload Actor' loaded.",
                            impl_.id_.c_str(), id.c_str());
 }
 

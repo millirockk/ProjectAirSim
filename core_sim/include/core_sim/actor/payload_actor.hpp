@@ -35,9 +35,6 @@ class PayloadActor : public Actor {
   const std::vector<Joint>& GetJoints() const;
 
   const PhysicsType& GetPhysicsType() const;
-  void SetPhysicsType(const PhysicsType& phys_type);
-  const std::string& GetPhysicsConnectionSettings() const;
-  void SetPhysicsConnectionSettings(const std::string& phys_conn_settings);
 
   //---------------------------------------------------------------------------
   // Runtime

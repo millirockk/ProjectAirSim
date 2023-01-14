@@ -47,11 +47,10 @@ class AUnrealPayloadActor : public AActor {
 
   void InitializeLinks(
       const std::vector<microsoft::projectairsim::Link>& InLinks,
-      const std::set<std::string>& InRootLinks, bool bWithUnrealPhysics);
+      const std::set<std::string>& InRootLinks);
 
   std::pair<std::string, UUnrealRobotLink*> CreateLink(
-      const microsoft::projectairsim::Link& InLink, bool bIsRootLink,
-      bool bWithUnrealPhysics);
+      const microsoft::projectairsim::Link& InLink, bool bIsRootLink);
 
   void InitializeJoints(
       const std::vector<microsoft::projectairsim::Joint>& InJoints);

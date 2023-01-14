@@ -1,0 +1,37 @@
+{
+    "links": [
+        {
+          "name": "Frame",
+          "inertial": {
+            "mass": 1.0,
+            "inertia": {
+              "type": "geometry",
+              "geometry": {
+                "box": {
+                  "size": "0.180 0.110 0.040"
+                }
+              }
+            },
+            "aerodynamics": {
+              "drag-coefficient": 0.325,
+              "type": "geometry",
+              "geometry": {
+                "box": {
+                  "size": "0.180 0.110 0.040"
+                }
+              }
+            }
+          },
+          "collision": {
+            "restitution": 0.1,
+            "friction": 0.5
+          },
+          "visual": {
+            "geometry": {
+              "type": "unreal_mesh",
+              "name": "/Drone/Quadrotor1"
+            }
+          }
+        }
+    ]
+  }

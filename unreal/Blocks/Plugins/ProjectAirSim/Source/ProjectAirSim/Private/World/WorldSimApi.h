@@ -20,6 +20,7 @@
 #include "World/TimeofDay.hpp"
 #include "core_sim/error.hpp"
 #include "core_sim/logger.hpp"
+#include "core_sim/message/kinematics_message.hpp"
 #include "core_sim/scene.hpp"
 #include "core_sim/service_method.hpp"
 #include "json.hpp"
@@ -51,6 +52,7 @@ class WorldSimApi {
 
   typedef microsoft::projectairsim::Transform Pose;
   typedef microsoft::projectairsim::Vector3 Vector3;
+  typedef microsoft::projectairsim::KinematicsMessage KinematicsMessage;  
 
   Vector3 HitTest(const Pose& pose_from);
 
@@ -257,6 +259,9 @@ class WorldSimApi {
   bool SetEnvActorLinkRotRate(const std::string& env_actor_name,
                               const std::string& link_name,
                               const float rotation_deg_per_sec);
+
+  KinematicsMessage GetPayloadKinematics(
+      const std::string& payload_actor_name);
 
   float GetZAtPoint(const float x, const float y);
 

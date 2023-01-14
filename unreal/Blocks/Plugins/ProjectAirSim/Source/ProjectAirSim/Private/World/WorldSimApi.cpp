@@ -12,6 +12,8 @@
 #include "assimp/postprocess.h"
 #include "assimp/scene.h"
 #include "core_sim/actor/env_actor.hpp"
+#include "core_sim/actor/payload_actor.hpp"
+#include "core_sim/clock.hpp"
 
 namespace projectairsim = microsoft::projectairsim;
 
@@ -381,6 +383,14 @@ void WorldSimApi::RegisterServiceMethods() {
           &WorldSimApi::SetEnvActorLinkRotRate, *this);
   sim_scene_->RegisterServiceMethod(set_env_actor_link_rot_rate,
                                     set_env_actor_link_rot_rate_handler);
+
+  auto get_payload_kinematics = projectairsim::ServiceMethod(
+      "GetPayloadKinematics", {"payload_actor_name"});
+  auto get_payload_kinematics_handler =
+      get_payload_kinematics.CreateMethodHandler(
+          &WorldSimApi::GetPayloadKinematics, *this);
+  sim_scene_->RegisterServiceMethod(get_payload_kinematics,
+                                    get_payload_kinematics_handler);
 
   auto hit_test_location = projectairsim::ServiceMethod("HitTest", {"pose"});
   auto hit_test_location_handler =
@@ -1881,6 +1891,27 @@ bool WorldSimApi::SetEnvActorLinkRotRate(const std::string& env_actor_name,
                       env_actor_name.c_str());
   }
   return success;
+}
+
+WorldSimApi::KinematicsMessage WorldSimApi::GetPayloadKinematics(
+    const std::string& payload_actor_name) {
+  auto& payload_actors = sim_scene_->GetPayloadActors();
+  int payload_actor_idx = sim_scene_->GetPayloadActorIndex(payload_actor_name);
+
+  WorldSimApi::KinematicsMessage msg;
+  if (payload_actor_idx != -1) {
+    auto& payload_actor_ref = payload_actors[payload_actor_idx];
+    auto& payload_actor =
+        static_cast<projectairsim::PayloadActor&>(payload_actor_ref.get());
+    msg = WorldSimApi::KinematicsMessage(
+        projectairsim::SimClock::Get()->NowSimNanos(),
+        payload_actor.GetKinematics());
+  } else {
+    UnrealLogger::Log(projectairsim::LogLevel::kVerbose,
+                      TEXT("PayloadActor '%hs' was not found."),
+                      payload_actor_name.c_str());
+  }
+  return msg;
 }
 
 float WorldSimApi::GetZAtPoint(const float x, const float y) {

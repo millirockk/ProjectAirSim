@@ -39,24 +39,14 @@ void AUnrealPayloadActor::Initialize(
   // Detect which links are roots based on their joint attachments
   auto RootLinks =
       GetRootLinks(InPayloadActor.GetLinks(), InPayloadActor.GetJoints());
-  bool bWithUnrealPhysics = (InPayloadActor.GetPhysicsType() ==
-                             projectairsim::PhysicsType::kUnrealPhysics);
 
-  if (bWithUnrealPhysics) {
-    // For Unreal-calculated physics, do the updates after Unreal has completed
-    // the physics tick calculations.
-    PrimaryActorTick.TickGroup = TG_PostPhysics;
-  } else {
-    // For calculated physics, do the updates during Unreal's world
-    // physics tick to stay in sequence with the other components.
-    PrimaryActorTick.TickGroup = TG_DuringPhysics;
-  }                
+  PrimaryActorTick.TickGroup = TG_DuringPhysics;
 
   // PrimaryActorTick.TickGroup = TG_PrePhysics;
 
   // Initialize the configured payload actor component structure
   InitializeId(InPayloadActor.GetID());
-  InitializeLinks(InPayloadActor.GetLinks(), RootLinks, bWithUnrealPhysics);
+  InitializeLinks(InPayloadActor.GetLinks(), RootLinks);
   InitializeJoints(InPayloadActor.GetJoints());
 
   // Set the initial pose from the payload actor's kinematics
@@ -71,26 +61,23 @@ void AUnrealPayloadActor::InitializeId(const std::string& InId) {
 
 void AUnrealPayloadActor::InitializeLinks(
     const std::vector<projectairsim::Link>& InLinks,
-    const std::set<std::string>& InRootLinks, bool bWithUnrealPhysics) {
+    const std::set<std::string>& InRootLinks) {
   std::for_each(InLinks.begin(), InLinks.end(),
-                [this, &InRootLinks,
-                 bWithUnrealPhysics](const projectairsim::Link& CurLink) {
+                [this, &InRootLinks](const projectairsim::Link& CurLink) {
                   bool bIsRootLink = false;
                   if (InRootLinks.find(CurLink.GetID()) != InRootLinks.end()) {
                     bIsRootLink = true;
                   }
-                  PayloadActorLinks.insert(
-                      CreateLink(CurLink, bIsRootLink, bWithUnrealPhysics));
+                  PayloadActorLinks.insert(CreateLink(CurLink, bIsRootLink));
                 });
 }
 
 std::pair<std::string, UUnrealRobotLink*> AUnrealPayloadActor::CreateLink(
-    const projectairsim::Link& InLink, bool bIsRootLink,
-    bool bWithUnrealPhysics) {
+    const projectairsim::Link& InLink, bool bIsRootLink) {
   auto Id = InLink.GetID();
 
   auto NewLink = NewObject<UUnrealRobotLink>(this, Id.c_str());
-  NewLink->Initialize(InLink, bWithUnrealPhysics);
+  NewLink->Initialize(InLink);
 
   if (bIsRootLink) {
     PayloadActorRootLink = NewLink;
