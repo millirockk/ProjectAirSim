@@ -6,8 +6,6 @@ Python client for ProjectAirSim payload actors.
 from projectairsim import ProjectAirSimClient, World
 from projectairsim.utils import projectairsim_log
 from typing import Dict
-from projectairsim.types import Pose
-
 
 class PayloadActor(object):
     def __init__(self, client: ProjectAirSimClient, world: World, name: str):

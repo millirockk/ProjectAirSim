@@ -67,6 +67,7 @@ class World(object):
             self.scene_config_path = config_paths[0]
             self.robot_config_paths = config_paths[1]
             self.envactor_config_paths = config_paths[2]
+            self.payload_actor_config_paths = config_paths[3]
             self.load_scene(config_dict, delay_after_load_sec=delay_after_load_sec)
         random.seed()
         self.import_ned_trajectory(

@@ -11,50 +11,104 @@
 namespace microsoft {
 namespace projectairsim {
 
-void PhysicsWorld::AddRobot(const Robot& robot) {
+void PhysicsWorld::AddActor(const Actor& actor) {
   // TODO Handle case of blank robot object with nullptr to impl
 
   // Note: The model variants need to be constructed  in place to avoid move
   // semantics to allow for atomic/mutex data members).
-  if (robot.GetPhysicsType() == PhysicsType::kFastPhysics) {
+  if (actor.GetType() == ActorType::kRobot) {
+    const auto& robot = static_cast<const Robot&>(actor);
+
+    if (robot.GetPhysicsType() == PhysicsType::kFastPhysics) {
     // Construct physics body passing params from robot JSON physics params
-    auto fast_physics_body = std::make_shared<FastPhysicsBody>(robot);
+      auto fast_physics_body = std::make_shared<FastPhysicsBody>(robot);
 
-    // Add physics body pointer to physics world
-    AddPhysicsBody(fast_physics_body);
+      // Add physics body pointer to physics world
+      AddPhysicsBody(fast_physics_body);
 
-    // Add FastPhysics model to the world's models if not already added
-    if (physics_models_.count(PhysicsType::kFastPhysics) == 0) {
-      physics_models_.emplace(PhysicsType::kFastPhysics,
-                              std::in_place_type<FastPhysicsModel>);
+      // Add FastPhysics model to the world's models if not already added
+      if (physics_models_.count(PhysicsType::kFastPhysics) == 0) {
+        physics_models_.emplace(PhysicsType::kFastPhysics,
+                                std::in_place_type<FastPhysicsModel>);
+      }
+    } else if (robot.GetPhysicsType() == PhysicsType::kMatlabPhysics) {
+      // Construct physics body passing params from robot JSON physics params
+      auto matlab_physics_body = std::make_shared<MatlabPhysicsBody>(robot);
+
+      // Add physics body pointer to physics world
+      AddPhysicsBody(matlab_physics_body);
+
+      // Add MatlabPhysics model to the world's models if not already added
+      if (physics_models_.count(PhysicsType::kMatlabPhysics) == 0) {
+        physics_models_.emplace(PhysicsType::kMatlabPhysics,
+                                std::in_place_type<MatlabPhysicsModel>);
+      }
+    } else if (robot.GetPhysicsType() == PhysicsType::kUnrealPhysics) {
+      // Make an UnrealPhysicsBody to aggregate actuator outputs and pass wrench
+      // to UnrealRobot to be applied at Unreal's next physics step
+      auto unreal_physics_body = std::make_shared<UnrealPhysicsBody>(robot);
+
+      // Add physics body pointer to physics world
+      AddPhysicsBody(unreal_physics_body);
+
+      // Add UnrealPhysics model to the world's models if not already added.
+      if (physics_models_.count(PhysicsType::kUnrealPhysics) == 0) {
+        physics_models_.emplace(PhysicsType::kUnrealPhysics,
+                                std::in_place_type<UnrealPhysicsModel>);
+      }
     }
-  } else if (robot.GetPhysicsType() == PhysicsType::kMatlabPhysics) {
-    // Construct physics body passing params from robot JSON physics params
-    auto matlab_physics_body = std::make_shared<MatlabPhysicsBody>(robot);
+  } else if (actor.GetType() == ActorType::kPayloadActor) {
+    // only use FastPhysics
+    const auto& payload_actor = static_cast<const PayloadActor&>(actor);
 
-    // Add physics body pointer to physics world
-    AddPhysicsBody(matlab_physics_body);
-
-    // Add MatlabPhysics model to the world's models if not already added
-    if (physics_models_.count(PhysicsType::kMatlabPhysics) == 0) {
-      physics_models_.emplace(PhysicsType::kMatlabPhysics,
-                              std::in_place_type<MatlabPhysicsModel>);
-    }
-  } else if (robot.GetPhysicsType() == PhysicsType::kUnrealPhysics) {
-    // Make an UnrealPhysicsBody to aggregate actuator outputs and pass wrench
-    // to UnrealRobot to be applied at Unreal's next physics step
-    auto unreal_physics_body = std::make_shared<UnrealPhysicsBody>(robot);
-
-    // Add physics body pointer to physics world
-    AddPhysicsBody(unreal_physics_body);
-
-    // Add UnrealPhysics model to the world's models if not already added.
-    if (physics_models_.count(PhysicsType::kUnrealPhysics) == 0) {
-      physics_models_.emplace(PhysicsType::kUnrealPhysics,
-                              std::in_place_type<UnrealPhysicsModel>);
-    }
+    // TODO: refactor FastPhysics to accept generic actor type than only Robots
   }
 }
+
+// void PhysicsWorld::AddRobot(const Robot& robot) {
+//   // TODO Handle case of blank robot object with nullptr to impl
+
+//   // Note: The model variants need to be constructed  in place to avoid move
+//   // semantics to allow for atomic/mutex data members).
+//   if (robot.GetPhysicsType() == PhysicsType::kFastPhysics) {
+//     // Construct physics body passing params from robot JSON physics params
+//     auto fast_physics_body = std::make_shared<FastPhysicsBody>(robot);
+
+//     // Add physics body pointer to physics world
+//     AddPhysicsBody(fast_physics_body);
+
+//     // Add FastPhysics model to the world's models if not already added
+//     if (physics_models_.count(PhysicsType::kFastPhysics) == 0) {
+//       physics_models_.emplace(PhysicsType::kFastPhysics,
+//                               std::in_place_type<FastPhysicsModel>);
+//     }
+//   } else if (robot.GetPhysicsType() == PhysicsType::kMatlabPhysics) {
+//     // Construct physics body passing params from robot JSON physics params
+//     auto matlab_physics_body = std::make_shared<MatlabPhysicsBody>(robot);
+
+//     // Add physics body pointer to physics world
+//     AddPhysicsBody(matlab_physics_body);
+
+//     // Add MatlabPhysics model to the world's models if not already added
+//     if (physics_models_.count(PhysicsType::kMatlabPhysics) == 0) {
+//       physics_models_.emplace(PhysicsType::kMatlabPhysics,
+//                               std::in_place_type<MatlabPhysicsModel>);
+//     }
+//   } else if (robot.GetPhysicsType() == PhysicsType::kUnrealPhysics) {
+//     // Make an UnrealPhysicsBody to aggregate actuator outputs and pass wrench
+//     // to UnrealRobot to be applied at Unreal's next physics step
+//     auto unreal_physics_body = std::make_shared<UnrealPhysicsBody>(robot);
+
+//     // Add physics body pointer to physics world
+//     AddPhysicsBody(unreal_physics_body);
+
+//     // Add UnrealPhysics model to the world's models if not already added.
+//     if (physics_models_.count(PhysicsType::kUnrealPhysics) == 0) {
+//       physics_models_.emplace(PhysicsType::kUnrealPhysics,
+//                               std::in_place_type<UnrealPhysicsModel>);
+//     }
+//   }
+// }
 
 void PhysicsWorld::AddPhysicsBody(
     std::shared_ptr<BasePhysicsBody> physics_body) {

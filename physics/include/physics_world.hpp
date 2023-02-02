@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "core_sim/actor/robot.hpp"
+#include "core_sim/actor/payload_actor.hpp"
 #include "core_sim/scene.hpp"
 #include "fast_physics.hpp"
 #include "matlab_physics.hpp"
@@ -29,7 +30,7 @@ class PhysicsWorld {
   PhysicsWorld() {}
   ~PhysicsWorld() {}
 
-  void AddRobot(const Robot& robot);
+  void AddActor(const Actor& robot);
 
   void AddPhysicsBody(std::shared_ptr<BasePhysicsBody> physics_body);
 

@@ -257,7 +257,17 @@ void SimServer::LoadPhysicsWorld(Scene& scene) {
     if (actor_ref.get().GetType() == ActorType::kRobot) {
       const auto& sim_robot = static_cast<const Robot&>(actor_ref.get());
       // Load sim robot into physics world
-      physics_world_->AddRobot(sim_robot);
+      physics_world_->AddActor(sim_robot);
+    }
+  }
+
+  // Add all payload actors into physics world
+  auto payload_actors = scene.GetPayloadActors();
+  for (const auto& payload_ref : payload_actors) {
+    if (payload_ref.get().GetType() == ActorType::kPayloadActor) {
+      const auto& payload_actor = static_cast<const PayloadActor&>(payload_ref.get());
+      // Load payload actor into physics world
+      physics_world_->AddActor(payload_actor);
     }
   }
 

@@ -481,7 +481,7 @@ def load_scene_config_as_dict(
     """
     projectairsim_log().info(f"Loading scene config: {config_name}")
     total_path = os.path.join(sim_config_path, config_name)
-    filepaths = [total_path, [], []]
+    filepaths = [total_path, [], [], []] # 3 [] for actors, env_actors, payload_actors
 
     robot_config_schema = pkg_resources.resource_string(
         __name__, "schema/robot_config_schema.jsonc"
@@ -522,6 +522,18 @@ def load_scene_config_as_dict(
                     if temp.get("script") != None:
                         validate_trajectory_json(temp["script"])
                     env_actor["env-actor-config"] = temp
+
+    if "payload-actors" in data: 
+        # read and write the payload-actor-config in each payload actor
+        for payload_actor in data["payload-actors"]:
+            if payload_actor["type"] == "payload_actor":
+                payload_actor_path = payload_actor["payload-actor-config"]
+                total_payload_actor_path = os.path.join(sim_config_path, payload_actor_path)
+                filepaths[3].append(payload_actor_path)
+                with open(total_payload_actor_path) as e:
+                    temp = commentjson.load(e)
+                    # validate_json(temp)
+                    payload_actor["payload-actor-config"] = temp
 
     if "tiles-dir" in data and data.get("tiles-dir-is-client-relative"):
         # Convert client-relative path into an absolute path before sending to sim

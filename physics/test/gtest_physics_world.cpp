@@ -30,7 +30,7 @@ TEST(PhysicsWorld, BaseWorldAddRemoveRobots) {
   for (auto actor_ref : actors) {
     if (actor_ref.get().GetType() == projectairsim::ActorType::kRobot) {
       auto& sim_robot = dynamic_cast<projectairsim::Robot&>(actor_ref.get());
-      world.AddRobot(sim_robot);
+      world.AddActor(sim_robot);
       EXPECT_EQ(world.GetPhysicsBodies().size(), 1);
     }
   }
@@ -63,7 +63,7 @@ TEST(PhysicsWorld, StepPhysicsWorld) {
       projectairsim::Kinematics kin = sim_robot.GetKinematics();
       EXPECT_FLOAT_EQ(kin.accels.linear.z(), 0.0);
 
-      world.AddRobot(sim_robot);
+      world.AddActor(sim_robot);
       world.StepPhysicsWorld(1.0f);
 
       kin = sim_robot.GetKinematics();
