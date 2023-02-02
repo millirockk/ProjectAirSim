@@ -1012,6 +1012,17 @@ bool Scene::Impl::SceneTick() {
         }
       }
 
+      // Update environment for payload actors
+      for (auto& payload_actor : payload_actors_) {
+        if (payload_actor->GetType() == ActorType::kPayloadActor) {
+          auto& payload = static_cast<PayloadActor&>(*payload_actor);
+
+          // Kinematics -> Environment Conditions
+          // Don't pass time params, no time dependency for environment calcs
+          payload.UpdateEnvironment();
+        }
+      }
+
       // After updating physics, environment, and sensor states, the world
       // state is now "clean" at t = sim_time_.
 
@@ -1559,17 +1570,20 @@ std::unique_ptr<Actor> Scene::Loader::LoadPayloadActorWithJSON(
   auto origin = GetActorOrigin(json, id);
   auto payload_actor_config =
       JsonUtils::GetJsonObject(json, Constant::Config::payload_actor_config);
+  bool start_landed_flag =
+      JsonUtils::GetBoolean(json, Constant::Config::start_landed, false);
 
   impl_.logger_.LogVerbose(impl_.name_, "[%s][%s] Loading 'Payload Actor'.",
                            impl_.id_.c_str(), id.c_str());
 
   if (type == Constant::Config::payload_actor) {
-    auto payload_actor =
-        new PayloadActor(id, origin, impl_.logger_, impl_.topic_manager_,
-                         impl_.topic_path_ + "/payload_actors",
-                         impl_.service_manager_, impl_.state_manager_);
+    auto payload_actor = new PayloadActor(
+        id, origin, impl_.logger_, impl_.topic_manager_,
+        impl_.topic_path_ + "/payload_actors", impl_.service_manager_,
+        impl_.state_manager_, impl_.home_geo_point_);
 
     payload_actor->Load(payload_actor_config);
+    payload_actor->SetStartLanded(start_landed_flag);
 
     return std::unique_ptr<Actor>(payload_actor);
 

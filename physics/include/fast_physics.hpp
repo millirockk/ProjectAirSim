@@ -7,6 +7,7 @@
 
 #include "base_physics.hpp"
 #include "core_sim/actor/robot.hpp"
+#include "core_sim/actor/payload_actor.hpp"
 #include "core_sim/environment.hpp"
 #include "core_sim/math_utils.hpp"
 #include "core_sim/physics_common_types.hpp"
@@ -21,10 +22,10 @@ namespace projectairsim {
 class FastPhysicsBody : public BasePhysicsBody {
  public:
   FastPhysicsBody() {}
-  explicit FastPhysicsBody(const Robot& robot);
+  explicit FastPhysicsBody(const Actor& actor);
   ~FastPhysicsBody() override {}
 
-  void InitializeFastPhysicsBody();
+  void InitializeFastPhysicsBody(const Actor& actor);
 
   // Aggregate all externally applied wrenches on body CG into wrench_
   void CalculateExternalWrench() override;
@@ -36,8 +37,8 @@ class FastPhysicsBody : public BasePhysicsBody {
   std::vector<std::reference_wrapper<const Link>> InitializeLiftDragLinks(
       const std::vector<Link>& links);
 
-  void ReadRobotData();
-  void WriteRobotData(const Kinematics& kinematics,
+  void ReadActorData();
+  void WriteActorData(const Kinematics& kinematics,
                       TimeNano external_time_stamp = -1);
 
   bool IsStillGrounded();
@@ -69,7 +70,7 @@ class FastPhysicsBody : public BasePhysicsBody {
  protected:
   friend class FastPhysicsModel;
 
-  Robot sim_robot_;
+  Actor& actor_;
 
   bool is_grounded_;
   Vector3 env_gravity_;

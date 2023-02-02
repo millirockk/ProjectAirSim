@@ -9,6 +9,7 @@
 #include "core_sim/actor.hpp"
 #include "core_sim/clock.hpp"
 #include "core_sim/earth_utils.hpp"
+#include "core_sim/environment.hpp"
 #include "core_sim/joint.hpp"
 #include "core_sim/link.hpp"
 #include "core_sim/logger.hpp"
@@ -34,7 +35,8 @@ class PayloadActor : public Actor {
   const std::vector<Link>& GetLinks() const;
   const std::vector<Joint>& GetJoints() const;
 
-  const PhysicsType& GetPhysicsType() const;
+  bool GetStartLanded() const;
+  void SetStartLanded(bool start_landed);
 
   //---------------------------------------------------------------------------
   // Runtime
@@ -43,6 +45,8 @@ class PayloadActor : public Actor {
   const Kinematics& GetKinematics() const;
   void SetKinematics(const Kinematics& kinematics);
   const Pose& GetPoseOffset() const;
+  const Environment& GetEnvironment() const;
+  void UpdateEnvironment();
 
   const CollisionInfo& GetCollisionInfo() const;
   void UpdateCollisionInfo(const CollisionInfo& collision_info);
@@ -58,7 +62,7 @@ class PayloadActor : public Actor {
                const TopicManager& topic_manager,
                const std::string& parent_topic_path,
                const ServiceManager& service_manager,
-               const StateManager& state_manager);
+               const StateManager& state_manager, HomeGeoPoint home_geo_point);
 
   void Load(ConfigJson config_json) override;
 

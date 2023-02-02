@@ -21,48 +21,46 @@ namespace projectairsim {
 // -----------------------------------------------------------------------------
 // class FastPhysicsBody
 
-FastPhysicsBody::FastPhysicsBody(const Robot& robot) : sim_robot_(robot) {
-  SetName(robot.GetID());
+FastPhysicsBody::FastPhysicsBody(const Actor& actor) {
+  SetName(actor.GetID());
   SetPhysicsType(PhysicsType::kFastPhysics);
-  InitializeFastPhysicsBody();
+  InitializeFastPhysicsBody(actor);
 }
 
-void FastPhysicsBody::InitializeFastPhysicsBody() {
-  // Get robot physics-related data
-  auto& actuators = sim_robot_.GetActuators();
-  const auto& links = sim_robot_.GetLinks();
-  const auto& root_link = links.at(0);  // TODO allow config to choose root link
+void FastPhysicsBody::InitializeFastPhysicsBody(const Actor& actor) {
+  external_wrench_points_.clear();
+  lift_drag_control_angles_.clear();
+  std::vector<Link> links;
+
+  if (actor.GetType() == ActorType::kRobot) {
+    const auto& sim_robot = static_cast<const Robot&>(actor);
+  
+    // Get robot physics-related data
+    auto& actuators = sim_robot.GetActuators();
+    links = sim_robot.GetLinks();
 
   // Process robot's actuators to store pointers to their wrench points and
   // lift-drag control angles
-  external_wrench_entries_.clear();
+  external_wrench_points_.clear();
   lift_drag_control_angles_.clear();
-  for (auto& actuator_ref : actuators) {
-    Actuator& actuator = actuator_ref.get();
-
+  for (const auto& actuator_ref : actuators) {
+    const Actuator& actuator = actuator_ref.get();
     if (actuator.GetType() == ActuatorType::kRotor) {
-      auto& rotor_ref = static_cast<Rotor&>(actuator);
-
-      external_wrench_entries_.emplace_back(
-          &rotor_ref.GetWrenchPoint(),
-          &static_cast<TransformTree::RefFrame&>(rotor_ref));
-    } else if (actuator.GetType() == ActuatorType::kWheel) {
-      auto& wheel_ref = static_cast<Wheel&>(actuator);
-
-      external_wrench_entries_.emplace_back(
-          &wheel_ref.GetWrenchPoint(),
-          &static_cast<TransformTree::RefFrame&>(wheel_ref));
-
+      const auto& rotor_ref = static_cast<const Rotor&>(actuator);
+      external_wrench_points_.emplace_back(&(rotor_ref.GetWrenchPoint()));
     } else if (actuator.GetType() == ActuatorType::kLiftDragControlSurface) {
       // Populate lift_drag_control_angles_ map as:
       //   key = control surface actuator's parent link (wing it affects)
       //   value = pointer to control surface actuator's control angle
       const auto& control_surface_ref =
           static_cast<const LiftDragControlSurface&>(actuator);
-
       lift_drag_control_angles_.emplace(control_surface_ref.GetParentLink(),
                                         &control_surface_ref.GetControlAngle());
     }
+  } else if (actor.GetType() == ActorType::kPayloadActor) {
+    const auto& payload_actor = static_cast<const PayloadActor&>(actor);
+    links = payload_actor.GetLinks();
+    is_grounded_ = payload_actor.GetStartLanded();
   }
 
   SetMass(root_link.GetInertial().GetMass());  // TODO accumulate link masses?
@@ -71,8 +69,6 @@ void FastPhysicsBody::InitializeFastPhysicsBody() {
   SetInertia(inertia);
 
   drag_faces_ = InitializeDragFaces(links);
-  lift_drag_links_ = InitializeLiftDragLinks(links);
-
   friction_ = root_link.GetCollision().GetFriction();
   restitution_ = root_link.GetCollision().GetRestitution();
   is_grounded_ = sim_robot_.GetStartLanded();
@@ -250,18 +246,28 @@ FastPhysicsBody::InitializeLiftDragLinks(const std::vector<Link>& links) {
   return lift_drag_links;
 }
 
-void FastPhysicsBody::ReadRobotData() {
-  kinematics_ = sim_robot_.GetKinematics();
-  collision_info_ = sim_robot_.GetCollisionInfo();
-  ext_force_ = sim_robot_.GetExternalForce();
-  const auto& cur_env = sim_robot_.GetEnvironment();
+void FastPhysicsBody::ReadActorData() {
+  Environment cur_env;
+  if (actor_.GetType() == ActorType::kRobot) {
+    const auto& sim_robot = static_cast<const Robot&>(actor_);
+    kinematics_ = sim_robot.GetKinematics();
+    collision_info_ = sim_robot.GetCollisionInfo();
+    ext_force_ = sim_robot.GetExternalForce();
+    cur_env = sim_robot.GetEnvironment();
+  } else if (actor_.GetType() == ActorType::kPayloadActor) {
+    const auto& payload_actor = static_cast<const PayloadActor&>(actor_);
+    kinematics_ = payload_actor.GetKinematics();
+    collision_info_ = payload_actor.GetCollisionInfo();
+    cur_env = payload_actor.GetEnvironment();
+  }
   const auto& cur_env_info = cur_env.env_info;
   env_gravity_ = cur_env_info.gravity;
   env_air_density_ = cur_env_info.air_density;
   env_wind_velocity_ = cur_env.wind_velocity;
 }
 
-void FastPhysicsBody::WriteRobotData(const Kinematics& kinematics,
+// TODO
+void FastPhysicsBody::WriteActorData(const Kinematics& kinematics,
                                      TimeNano external_time_stamp) {
   sim_robot_.UpdateKinematics(kinematics, external_time_stamp);
 }

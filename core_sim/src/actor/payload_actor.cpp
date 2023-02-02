@@ -43,29 +43,27 @@ class PayloadActor::Impl : public ActorImpl {
        const StateManager& state_manager);
 
   void Load(ConfigJson config_json);
-
   const std::vector<Link>& GetLinks();
-
   const std::vector<Joint>& GetJoints();
-
-  void LoadKinematics();
-
-  const Kinematics& GetKinematics() const;
 
   const CollisionInfo& GetCollisionInfo() const;
   void UpdateCollisionInfo(const CollisionInfo& collision_info);
   void SetHasCollided(bool has_collided);
 
   const Pose& GetPoseOffset() const;
+  const Environment& GetEnvironment() const;
+  void UpdateEnvironment();
 
+  void LoadKinematics();
+  const Kinematics& GetKinematics() const;
   void SetKinematics(const Kinematics& kinematics);
 
-  const PhysicsType& GetPhysicsType() const;
+  bool GetStartLanded() const;
+  void SetStartLanded(bool start_landed);
+  void SetHomeGeoPoint(const HomeGeoPoint& home_geo_point);
 
   void CreateTopics();
-
   void OnBeginUpdate() override;
-
   void OnEndUpdate() override;
 
  private:
@@ -76,12 +74,12 @@ class PayloadActor::Impl : public ActorImpl {
   std::vector<Link> links_;
   std::vector<Joint> joints_;
 
-  PhysicsType physics_type_ = PhysicsType::kFastPhysics;
-
   CollisionInfo collision_info_;
   Kinematics kinematics_;
+  Environment environment_;
   Pose relative_offset_;
   bool in_attached_state_ = false;
+  bool start_landed_;
 
   Topic payload_actor_kinematic_topic;
   Topic collision_info_topic_;
@@ -98,10 +96,14 @@ PayloadActor::PayloadActor(const std::string& id, const Pose& origin,
                            const TopicManager& topic_manager,
                            const std::string& parent_topic_path,
                            const ServiceManager& service_manager,
-                           const StateManager& state_manager)
+                           const StateManager& state_manager,
+                           HomeGeoPoint home_geo_point)
     : Actor(std::shared_ptr<ActorImpl>(new PayloadActor::Impl(
           id, origin, logger, topic_manager, parent_topic_path, service_manager,
-          state_manager))) {}
+          state_manager))) {
+  static_cast<PayloadActor::Impl*>(pimpl_.get())
+      ->SetHomeGeoPoint(home_geo_point);
+}
 
 void PayloadActor::Load(ConfigJson config_json) {
   return static_cast<PayloadActor::Impl*>(pimpl_.get())->Load(config_json);
@@ -119,6 +121,14 @@ const Kinematics& PayloadActor::GetKinematics() const {
   return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetKinematics();
 }
 
+const Environment& PayloadActor::GetEnvironment() const {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetEnvironment();
+}
+
+void PayloadActor::UpdateEnvironment() {
+  static_cast<PayloadActor::Impl*>(pimpl_.get())->UpdateEnvironment();
+}
+
 const Transform& PayloadActor::GetPoseOffset() const {
   return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetPoseOffset();
 }
@@ -128,8 +138,12 @@ void PayloadActor::SetKinematics(const Kinematics& kinematics) {
       ->SetKinematics(kinematics);
 }
 
-const PhysicsType& PayloadActor::GetPhysicsType() const {
-  return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetPhysicsType();
+bool PayloadActor::GetStartLanded() const {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetStartLanded();
+}
+
+void PayloadActor::SetStartLanded(bool start_landed) {
+  static_cast<PayloadActor::Impl*>(pimpl_.get())->SetStartLanded(start_landed);
 }
 
 void PayloadActor::BeginUpdate() {
@@ -165,7 +179,8 @@ PayloadActor::Impl::Impl(const std::string& id, const Pose& origin,
     : ActorImpl(ActorType::kPayloadActor, id, origin,
                 Constant::Component::payload_actor, logger, topic_manager,
                 parent_topic_path, service_manager, state_manager),
-      loader_(*this) {
+      loader_(*this),
+      start_landed_(false) {
   SetTopicPath();
   CreateTopics();
 }
@@ -187,6 +202,10 @@ void PayloadActor::Impl::Load(ConfigJson config_json) {
   // Load PayloadActor from JSON config
   json json = config_json;
   loader_.Load(json);
+
+  // Update initial environment from initial kinematics position (home geo point
+  // should have been set during payload construction in the scene).
+  UpdateEnvironment();
 
   // Initialize kinematics from loaded origin
   LoadKinematics();
@@ -213,8 +232,24 @@ void PayloadActor::Impl::SetKinematics(const Kinematics& kinematics) {
   kinematics_ = kinematics;
 }
 
-const PhysicsType& PayloadActor::Impl::GetPhysicsType() const {
-  return physics_type_;
+const Environment& PayloadActor::Impl::GetEnvironment() const {
+  return environment_;
+}
+
+void PayloadActor::Impl::UpdateEnvironment() {
+  std::lock_guard<std::mutex> lock(update_lock_);
+  environment_.SetPosition(kinematics_.pose.position);
+}
+
+bool PayloadActor::Impl::GetStartLanded() const { return start_landed_; }
+
+void PayloadActor::Impl::SetStartLanded(bool start_landed) {
+  start_landed_ = start_landed;
+}
+
+void PayloadActor::Impl::SetHomeGeoPoint(const HomeGeoPoint& home_geo_point) {
+  std::lock_guard<std::mutex> lock(update_lock_);
+  environment_.home_geo_point = home_geo_point;
 }
 
 void PayloadActor::Impl::OnBeginUpdate() {
