@@ -57,6 +57,15 @@ void AUnrealScene::LoadUnrealScene(
         LoadUnrealEnvActor(World, env_actor.get());
       });
 
+  // Load UnrealPayloadActor actors for each payload actor in sim scene
+  auto payload_actors = Scene.GetPayloadActors();
+  std::for_each(
+      payload_actors.begin(), payload_actors.end(),
+      [this, World, UnrealPhysicsBodies](
+          const std::reference_wrapper<projectairsim::Actor> payload_actor) {
+        LoadUnrealPayloadActor(World, payload_actor.get(), UnrealPhysicsBodies);
+      });
+
   unreal_world = World;
   sim_scene = &Scene;
 
@@ -136,6 +145,47 @@ void AUnrealScene::LoadUnrealEnvActor(UWorld* World,
   }
 }
 
+void AUnrealScene::LoadUnrealPayloadActor(
+    UWorld* World, const projectairsim::Actor& Actor,
+    const std::unordered_map<std::string, projectairsim::UnrealPhysicsBody*>&
+        UnrealPhysicsBodies) {
+  UnrealLogger::Log(projectairsim::LogLevel::kTrace,
+                    TEXT("[UnrealScene] Loading Unreal payload actor %S."),
+                    Actor.GetID().c_str());
+
+  if (Actor.GetType() == projectairsim::ActorType::kPayloadActor) {
+    const auto& sim_payload_actor =
+        static_cast<const projectairsim::PayloadActor&>(Actor);
+
+    // Load payload actor into UE rendering world
+    auto xyz_ned = sim_payload_actor.GetOrigin().translation_;
+    FVector translation(xyz_ned.x() * 100, xyz_ned.y() * 100,
+                        -xyz_ned.z() * 100);  // NED m -> NEU cm
+
+    auto rpy = sim_payload_actor.GetOrigin().rotation_;
+    FQuat rotation(rpy.x(), rpy.y(), rpy.z(), rpy.w());
+
+    FTransform transform(rotation, translation);
+
+    auto unreal_payload_actor = World->SpawnActorDeferred<AUnrealPayloadActor>(
+        AUnrealPayloadActor::StaticClass(), transform, nullptr, nullptr,
+        ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn);
+
+    if (unreal_payload_actor != nullptr) {
+      // Check for UnrealPhysicsBody ptr in map
+      auto it_pbody = UnrealPhysicsBodies.find(sim_payload_actor.GetID());
+      projectairsim::UnrealPhysicsBody* sim_physbody =
+          it_pbody != UnrealPhysicsBodies.end() ? it_pbody->second : nullptr;
+
+      // Load UnrealPayloadActor data from sim_payload_actor
+      unreal_payload_actor->Initialize(sim_payload_actor, sim_physbody);
+
+      // Save ptr to unreal_robot
+      unreal_payload_actors.Add(unreal_payload_actor);
+    }
+  }
+}
+
 void AUnrealScene::UnloadUnrealScene() {
   for (auto unreal_actor : unreal_actors) {
     unreal_actor->Destroy();
@@ -145,10 +195,15 @@ void AUnrealScene::UnloadUnrealScene() {
     unreal_env_actor->Destroy();
   }
 
+  for (auto unreal_payload_actor : unreal_payload_actors) {
+    unreal_payload_actor->Destroy();
+  }
+
   bool temp = world_api->destroyAllSpawnedObjects();
 
   unreal_actors.Empty();
   unreal_env_actors.Empty();
+  unreal_payload_actors.Empty();
   idx_actor_to_view = 0;
   time_of_day->ResetSunSkyToDefault();
   UWeatherLib::unloadWeather(unreal_world);
@@ -175,6 +230,10 @@ void AUnrealScene::StartUnrealScene() {
 
   for (const auto unreal_env_actor : unreal_env_actors) {
     unreal_env_actor->FinishSpawning(FTransform(), true);
+  }
+
+  for (const auto unreal_payload_actor : unreal_payload_actors) {
+    unreal_payload_actor->FinishSpawning(FTransform(), true);
   }
   // The Unreal actor BeginPlay() methods are triggered by the
   // FinishSpawning() calls, where we added our sim begin steps. Should

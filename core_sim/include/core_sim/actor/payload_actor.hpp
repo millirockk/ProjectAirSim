@@ -13,6 +13,7 @@
 #include "core_sim/joint.hpp"
 #include "core_sim/link.hpp"
 #include "core_sim/logger.hpp"
+#include "core_sim/message/pose_message.hpp"
 
 namespace microsoft {
 namespace projectairsim {
@@ -27,6 +28,7 @@ class PayloadActor : public Actor {
  public:
   PayloadActor();
 
+  typedef std::function<void(const Kinematics&, TimeNano)> KinematicsCallback;
   typedef microsoft::projectairsim::Transform Pose;
 
   //---------------------------------------------------------------------------
@@ -43,7 +45,7 @@ class PayloadActor : public Actor {
   //
 
   const Kinematics& GetKinematics() const;
-  void SetKinematics(const Kinematics& kinematics);
+  void UpdateKinematics(const Kinematics& kinematics);
   const Pose& GetPoseOffset() const;
   const Environment& GetEnvironment() const;
   void UpdateEnvironment();
@@ -51,6 +53,8 @@ class PayloadActor : public Actor {
   const CollisionInfo& GetCollisionInfo() const;
   void UpdateCollisionInfo(const CollisionInfo& collision_info);
   void SetHasCollided(bool has_collided);
+
+  void SetCallbackKinematicsUpdated(const KinematicsCallback& callback);
 
   void BeginUpdate();
   void EndUpdate();

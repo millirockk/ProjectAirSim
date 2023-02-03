@@ -273,7 +273,7 @@ void FastPhysicsBody::WriteActorData(const Kinematics& kinematics,
     sim_robot.UpdateKinematics(kinematics, external_time_stamp);
   } else if (actor_.GetType() == ActorType::kPayloadActor) {
     auto& payload_actor = static_cast<PayloadActor&>(actor_);
-    payload_actor.SetKinematics(kinematics);
+    payload_actor.UpdateKinematics(kinematics);
   }
 }
 

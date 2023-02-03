@@ -9,6 +9,7 @@
 #include "Renderers/BlackSharkRenderer.hpp"
 #include "Robot/UnrealEnvActor.h"
 #include "Robot/UnrealRobot.h"
+#include "Robot/UnrealPayloadActor.h"
 #include "Sensors/UnrealViewportCamera.h"
 #include "World/TimeofDay.hpp"
 #include "World/WorldSimApi.h"
@@ -78,6 +79,12 @@ class AUnrealScene : public AActor {
   void LoadUnrealEnvActor(UWorld* World,
                           const microsoft::projectairsim::Actor& Actor);
 
+  void LoadUnrealPayloadActor(
+      UWorld* World, const microsoft::projectairsim::Actor& Actor,
+      const std::unordered_map<std::string,
+                               microsoft::projectairsim::UnrealPhysicsBody*>&
+          UnrealPhysicsBodies);
+
   bool GetWorldAlignedBoundingBox3D(const std::string& ObjectName,
                                     FOrientedBox& OrientedBox) const;
   bool GetActorAlignedBoundingBox3D(const std::string& ObjectName,
@@ -106,6 +113,7 @@ class AUnrealScene : public AActor {
   AUnrealViewportCamera* unreal_viewport_camera_;
   TArray<AUnrealRobot*> unreal_actors;
   TArray<AUnrealEnvActor*> unreal_env_actors;
+  TArray<AUnrealPayloadActor*> unreal_payload_actors;
   size_t idx_actor_to_view = 0;
   bool found_actor = false;
 

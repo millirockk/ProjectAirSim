@@ -56,7 +56,8 @@ class PayloadActor::Impl : public ActorImpl {
 
   void LoadKinematics();
   const Kinematics& GetKinematics() const;
-  void SetKinematics(const Kinematics& kinematics);
+  void UpdateKinematics(const Kinematics& kinematics);
+  void SetCallbackKinematicsUpdated(const KinematicsCallback& callback);
 
   bool GetStartLanded() const;
   void SetStartLanded(bool start_landed);
@@ -81,7 +82,9 @@ class PayloadActor::Impl : public ActorImpl {
   bool in_attached_state_ = false;
   bool start_landed_;
 
-  Topic payload_actor_kinematic_topic;
+  KinematicsCallback callback_kinematics_updated_;
+
+  Topic payload_actor_pose_topic_;
   Topic collision_info_topic_;
   std::vector<std::reference_wrapper<Topic>> topics_;
 };
@@ -133,9 +136,9 @@ const Transform& PayloadActor::GetPoseOffset() const {
   return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetPoseOffset();
 }
 
-void PayloadActor::SetKinematics(const Kinematics& kinematics) {
+void PayloadActor::UpdateKinematics(const Kinematics& kinematics) {
   return static_cast<PayloadActor::Impl*>(pimpl_.get())
-      ->SetKinematics(kinematics);
+      ->UpdateKinematics(kinematics);
 }
 
 bool PayloadActor::GetStartLanded() const {
@@ -167,6 +170,12 @@ void PayloadActor::SetHasCollided(bool has_collided) {
   static_cast<PayloadActor::Impl*>(pimpl_.get())->SetHasCollided(has_collided);
 }
 
+void PayloadActor::SetCallbackKinematicsUpdated(
+    const KinematicsCallback& callback) {
+  static_cast<PayloadActor::Impl*>(pimpl_.get())
+      ->SetCallbackKinematicsUpdated(callback);
+}
+
 // -----------------------------------------------------------------------------
 // class PayloadActor::Impl
 
@@ -180,21 +189,22 @@ PayloadActor::Impl::Impl(const std::string& id, const Pose& origin,
                 Constant::Component::payload_actor, logger, topic_manager,
                 parent_topic_path, service_manager, state_manager),
       loader_(*this),
+      callback_kinematics_updated_(nullptr),
       start_landed_(false) {
   SetTopicPath();
   CreateTopics();
 }
 
 void PayloadActor::Impl::CreateTopics() {
-  payload_actor_kinematic_topic =
-      Topic("actual_kinematics", topic_path_, TopicType::kPublished, 0,
-            MessageType::kKinematics);
+  payload_actor_pose_topic_ =
+      Topic("actual_pose", topic_path_, TopicType::kPublished, 0,
+            MessageType::kPosestamped);
 
   collision_info_topic_ =
       Topic("collision_info", topic_path_, TopicType::kPublished, 0,
             MessageType::kCollisionInfo);
 
-  topics_.push_back(payload_actor_kinematic_topic);
+  topics_.push_back(payload_actor_pose_topic_);
   topics_.push_back(collision_info_topic_);
 }
 
@@ -228,8 +238,21 @@ const Transform& PayloadActor::Impl::GetPoseOffset() const {
   return relative_offset_;
 }
 
-void PayloadActor::Impl::SetKinematics(const Kinematics& kinematics) {
+void PayloadActor::Impl::UpdateKinematics(const Kinematics& kinematics) {
+  std::lock_guard<std::mutex> lock(update_lock_);
   kinematics_ = kinematics;
+  TimeNano time_stamp = SimClock::Get()->NowSimNanos();
+
+  // Process callback for updated kinematics
+  auto func = callback_kinematics_updated_;
+  if (func != nullptr) {
+    func(kinematics_, time_stamp);
+  }
+
+  // Publish pose topic
+  PoseMessage pose_msg(time_stamp, kinematics_.pose.position,
+                       kinematics_.pose.orientation);
+  topic_manager_.PublishTopic(payload_actor_pose_topic_, pose_msg);
 }
 
 const Environment& PayloadActor::Impl::GetEnvironment() const {
@@ -260,6 +283,7 @@ void PayloadActor::Impl::OnBeginUpdate() {
 }
 
 void PayloadActor::Impl::OnEndUpdate() {
+  callback_kinematics_updated_ = nullptr;
   // Unregister all topics
   for (const auto& topic_ref : topics_) {
     topic_manager_.UnregisterTopic(topic_ref.get());
@@ -285,6 +309,12 @@ void PayloadActor::Impl::UpdateCollisionInfo(
 void PayloadActor::Impl::SetHasCollided(bool has_collided) {
   std::lock_guard<std::mutex> lock(update_lock_);
   collision_info_.has_collided = has_collided;
+}
+
+void PayloadActor::Impl::SetCallbackKinematicsUpdated(
+    const KinematicsCallback& callback) {
+  std::lock_guard<std::mutex> lock(update_lock_);
+  callback_kinematics_updated_ = callback;
 }
 
 // class PayloadActor::Loader

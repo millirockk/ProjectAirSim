@@ -15,6 +15,7 @@
 #include "core_sim/actor/payload_actor.hpp"
 #include "core_sim/clock.hpp"
 #include "core_sim/physics_common_types.hpp"
+#include "unreal_physics.hpp"
 
 // comment so that generated.h is always the last include file with clang-format
 #include "UnrealPayloadActor.generated.h"
@@ -26,7 +27,8 @@ class AUnrealPayloadActor : public AActor {
  public:
   explicit AUnrealPayloadActor(const FObjectInitializer& ObjectInitialize);
 
-  void Initialize(const microsoft::projectairsim::PayloadActor& InPayloadActor);
+  void Initialize(const microsoft::projectairsim::PayloadActor& InPayloadActor,
+                  microsoft::projectairsim::UnrealPhysicsBody* InPhysBody);
 
   void Tick(float DeltaTime) override;
 
@@ -58,10 +60,10 @@ class AUnrealPayloadActor : public AActor {
   std::pair<std::string, UUnrealRobotJoint*> CreateJoint(
       const microsoft::projectairsim::Joint& InJoint);
 
-  void UpdatePayloadActorTargetPose(
-      const microsoft::projectairsim::Pose& InPose, TimeNano InTimestamp);
+  void SetPayloadActorKinematics(
+      const microsoft::projectairsim::Kinematics& InKin, TimeNano InTimestamp);
 
-  void MovePayloadActorToTargetPose(bool bUseCollisionSweep);
+  void MovePayloadActorToUnrealPose(bool bUseCollisionSweep);
 
   std::set<std::string> GetRootLinks(
       const std::vector<microsoft::projectairsim::Link>& InLinks,
@@ -72,14 +74,15 @@ class AUnrealPayloadActor : public AActor {
   FCriticalSection UpdateMutex;
 
   microsoft::projectairsim::PayloadActor SimPayloadActor;
+  microsoft::projectairsim::UnrealPhysicsBody* SimPhysicsBody;
   std::map<std::string, UUnrealRobotLink*> PayloadActorLinks;
   std::map<std::string, UUnrealRobotJoint*> PayloadActorJoints;
 
   bool bHasLinkRotAnglesUpdated = false;
 
-  bool bHasTargetPoseUpdated = false;
-  microsoft::projectairsim::Pose PayloadActorTargetPose;
-  TimeNano TargetPoseUpdatedTimeStamp = 0;
+  bool bHasKinematicsUpdated = false;
+  microsoft::projectairsim::Kinematics PayloadActorKinematics;
+  TimeNano KinematicsUpdatedTimeStamp = 0;
 
-  bool bHasPayloadActorPoseUpdated = false;
+  bool bHasUnrealPoseUpdated = false;
 };

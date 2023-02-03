@@ -27,8 +27,10 @@ AUnrealPayloadActor::AUnrealPayloadActor(
 }
 
 void AUnrealPayloadActor::Initialize(
-    const projectairsim::PayloadActor& InPayloadActor) {
+    const projectairsim::PayloadActor& InPayloadActor,
+    microsoft::projectairsim::UnrealPhysicsBody* InPhysBody) {
   // Store ptrs to other corresponding components for this payload actor
+  SimPhysicsBody = InPhysBody;
   this->SimPayloadActor =
       InPayloadActor;  // This makes a copy from the payload actor ref. It does
                        // get another shared_ptr for the same address
@@ -50,9 +52,9 @@ void AUnrealPayloadActor::Initialize(
   InitializeJoints(InPayloadActor.GetJoints());
 
   // Set the initial pose from the payload actor's kinematics
-  UpdatePayloadActorTargetPose(InPayloadActor.GetKinematics().pose,
-                               0);      // timestamp=0
-  MovePayloadActorToTargetPose(false);  // move without collision sweep
+  SetPayloadActorKinematics(InPayloadActor.GetKinematics(),
+                            0);         // timestamp=0
+  MovePayloadActorToUnrealPose(false);  // move without collision sweep
 }
 
 void AUnrealPayloadActor::InitializeId(const std::string& InId) {
@@ -182,13 +184,14 @@ void AUnrealPayloadActor::OnCollisionHit(UPrimitiveComponent* HitComponent,
   }
 }
 
-void AUnrealPayloadActor::UpdatePayloadActorTargetPose(
-    const projectairsim::Pose& InPose, TimeNano InTimestamp) {
+void AUnrealPayloadActor::SetPayloadActorKinematics(
+    const projectairsim::Kinematics& InKin, TimeNano InTimestamp) {
   // TODO Need mutex lock to block writing while these data members are being
   // read in other parts of the code to guarantee pose/timestamp stays in sync?
-  PayloadActorTargetPose = InPose;
-  TargetPoseUpdatedTimeStamp = InTimestamp;
-  bHasTargetPoseUpdated = true;
+  FScopeLock ScopeLock(&UpdateMutex);
+  PayloadActorKinematics = InKin;
+  KinematicsUpdatedTimeStamp = InTimestamp;
+  bHasKinematicsUpdated = true;
 
   // UnrealLogger::Log(projectairsim::LogLevel::kTrace,
   //                   TEXT("UpdatePayloadActorTargetPose xyz=%f, %f, %f"),
@@ -197,16 +200,16 @@ void AUnrealPayloadActor::UpdatePayloadActorTargetPose(
   //                   PayloadActorTargetPose.position.z());
 }
 
-void AUnrealPayloadActor::MovePayloadActorToTargetPose(
+void AUnrealPayloadActor::MovePayloadActorToUnrealPose(
     bool bUseCollisionSweep) {
-  if (PayloadActorRootLink == nullptr || bHasTargetPoseUpdated == false) return;
+  if (PayloadActorRootLink == nullptr || bHasKinematicsUpdated == false) return;
 
   // Clear payload's has_collided flag before trying to move again
   SimPayloadActor.SetHasCollided(false);
 
   // Copy target pose data in case it gets updated again while processing
-  projectairsim::Pose TgtPose = PayloadActorTargetPose;
-  bHasTargetPoseUpdated = false;  // done processing target pose, clear flag
+  projectairsim::Pose TgtPose = PayloadActorKinematics.pose;
+  bHasKinematicsUpdated = false;  // done processing kinematics, clear flag
 
   // Use local copy of target pose to do actual payload actor pose update
   const FVector TgtLocNEU =
@@ -222,7 +225,7 @@ void AUnrealPayloadActor::MovePayloadActorToTargetPose(
   // SetWorldLocationAndRotation will be handled by the
   // callback AUnrealPayloadActor::OnCollisionHit() with the FHitResult info
 
-  bHasPayloadActorPoseUpdated = true;
+  bHasUnrealPoseUpdated = true;
 
   // UnrealLogger::Log(projectairsim::LogLevel::kTrace,
   //                   TEXT("SetWorldLocationAndRotation xyz=%f, %f, %f"),
@@ -237,6 +240,12 @@ void AUnrealPayloadActor::BeginPlay() {
     PayloadActorRootLink->OnComponentHit.AddDynamic(
         this, &AUnrealPayloadActor::OnCollisionHit);
   }
+
+  // Register callback for sim robot to set pose on UnrealRobot
+  SimPayloadActor.SetCallbackKinematicsUpdated(
+      [this](const projectairsim::Kinematics& Kin, TimeNano Timestamp) {
+        this->SetPayloadActorKinematics(Kin, Timestamp);
+      });
 }
 
 void AUnrealPayloadActor::EndPlay(const EEndPlayReason::Type EndPlayReason) {
@@ -252,10 +261,8 @@ void AUnrealPayloadActor::Tick(float DeltaTime) {
       PayloadActorRootLink ? PayloadActorRootLink->IsLinkCollisionEnabled()
                            : false;
 
-  // At every tick, get the updated pose and move payload_actor to that pose
-  UpdatePayloadActorTargetPose(SimPayloadActor.GetKinematics().pose,
-                               0);  // timestamp=0
-  MovePayloadActorToTargetPose(bUseCollisionSweep);
+  MovePayloadActorToUnrealPose(bUseCollisionSweep);
+  bHasUnrealPoseUpdated = true;
 }
 
 const microsoft::projectairsim::Kinematics& AUnrealPayloadActor::GetKinematics()
