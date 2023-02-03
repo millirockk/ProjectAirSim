@@ -11,16 +11,16 @@
 namespace microsoft {
 namespace projectairsim {
 
-void PhysicsWorld::AddActor(const Actor& actor) {
+void PhysicsWorld::AddActor(Actor& actor) {
   // TODO Handle case of blank robot object with nullptr to impl
 
   // Note: The model variants need to be constructed  in place to avoid move
   // semantics to allow for atomic/mutex data members).
   if (actor.GetType() == ActorType::kRobot) {
-    const auto& robot = static_cast<const Robot&>(actor);
+    auto& robot = static_cast<Robot&>(actor);
 
     if (robot.GetPhysicsType() == PhysicsType::kFastPhysics) {
-    // Construct physics body passing params from robot JSON physics params
+      // Construct physics body passing params from robot JSON physics params
       auto fast_physics_body = std::make_shared<FastPhysicsBody>(robot);
 
       // Add physics body pointer to physics world
@@ -58,10 +58,16 @@ void PhysicsWorld::AddActor(const Actor& actor) {
       }
     }
   } else if (actor.GetType() == ActorType::kPayloadActor) {
-    // only use FastPhysics
-    const auto& payload_actor = static_cast<const PayloadActor&>(actor);
+    // only uses FastPhysics
+    auto& payload_actor = static_cast<PayloadActor&>(actor);
+    auto fast_physics_body = std::make_shared<FastPhysicsBody>(payload_actor);
+    AddPhysicsBody(fast_physics_body);
 
-    // TODO: refactor FastPhysics to accept generic actor type than only Robots
+    // Add MatlabPhysics model to the world's models if not already added
+    if (physics_models_.count(PhysicsType::kFastPhysics) == 0) {
+      physics_models_.emplace(PhysicsType::kFastPhysics,
+                              std::in_place_type<FastPhysicsModel>);
+    }
   }
 }
 
@@ -95,7 +101,8 @@ void PhysicsWorld::AddActor(const Actor& actor) {
 //                               std::in_place_type<MatlabPhysicsModel>);
 //     }
 //   } else if (robot.GetPhysicsType() == PhysicsType::kUnrealPhysics) {
-//     // Make an UnrealPhysicsBody to aggregate actuator outputs and pass wrench
+//     // Make an UnrealPhysicsBody to aggregate actuator outputs and pass
+//     wrench
 //     // to UnrealRobot to be applied at Unreal's next physics step
 //     auto unreal_physics_body = std::make_shared<UnrealPhysicsBody>(robot);
 

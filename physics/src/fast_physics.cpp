@@ -21,7 +21,7 @@ namespace projectairsim {
 // -----------------------------------------------------------------------------
 // class FastPhysicsBody
 
-FastPhysicsBody::FastPhysicsBody(const Actor& actor) {
+FastPhysicsBody::FastPhysicsBody(Actor& actor) : actor_(actor) {
   SetName(actor.GetID());
   SetPhysicsType(PhysicsType::kFastPhysics);
   InitializeFastPhysicsBody(actor);
@@ -34,7 +34,7 @@ void FastPhysicsBody::InitializeFastPhysicsBody(const Actor& actor) {
 
   if (actor.GetType() == ActorType::kRobot) {
     const auto& sim_robot = static_cast<const Robot&>(actor);
-  
+
     // Get robot physics-related data
     auto& actuators = sim_robot.GetActuators();
     links = sim_robot.GetLinks();
@@ -266,10 +266,15 @@ void FastPhysicsBody::ReadActorData() {
   env_wind_velocity_ = cur_env.wind_velocity;
 }
 
-// TODO
 void FastPhysicsBody::WriteActorData(const Kinematics& kinematics,
                                      TimeNano external_time_stamp) {
-  sim_robot_.UpdateKinematics(kinematics, external_time_stamp);
+  if (actor_.GetType() == ActorType::kRobot) {
+    auto& sim_robot = static_cast<Robot&>(actor_);
+    sim_robot.UpdateKinematics(kinematics, external_time_stamp);
+  } else if (actor_.GetType() == ActorType::kPayloadActor) {
+    auto& payload_actor = static_cast<PayloadActor&>(actor_);
+    payload_actor.SetKinematics(kinematics);
+  }
 }
 
 bool FastPhysicsBody::IsStillGrounded() {
@@ -361,7 +366,7 @@ void FastPhysicsModel::StepPhysicsBody(TimeNano dt_nanos,
     Kinematics next_kin;
 
     // Step 1 - Update physics body's data from robot's latest data
-    fp_body->ReadRobotData();
+    fp_body->ReadActorData();
 
     // Step 2 - Calculate kinematics without collisions
     if (fp_body->IsStillGrounded()) {
@@ -400,7 +405,7 @@ void FastPhysicsModel::StepPhysicsBody(TimeNano dt_nanos,
     }
 
     // Step 4 - Save new kinematics to body's referenced sim robot
-    fp_body->WriteRobotData(next_kin);
+    fp_body->WriteActorData(next_kin);
   }
 }
 

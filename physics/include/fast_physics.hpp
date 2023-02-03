@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "base_physics.hpp"
-#include "core_sim/actor/robot.hpp"
 #include "core_sim/actor/payload_actor.hpp"
+#include "core_sim/actor/robot.hpp"
 #include "core_sim/environment.hpp"
 #include "core_sim/math_utils.hpp"
 #include "core_sim/physics_common_types.hpp"
@@ -21,8 +21,8 @@ namespace projectairsim {
 
 class FastPhysicsBody : public BasePhysicsBody {
  public:
-  FastPhysicsBody() {}
-  explicit FastPhysicsBody(const Actor& actor);
+  // FastPhysicsBody() {}
+  explicit FastPhysicsBody(Actor& actor);
   ~FastPhysicsBody() override {}
 
   void InitializeFastPhysicsBody(const Actor& actor);
