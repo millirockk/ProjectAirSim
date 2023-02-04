@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "core_sim/actor.hpp"
+#include "core_sim/actor/payload_actor.hpp"
 #include "core_sim/actuators/actuator.hpp"
 #include "core_sim/clock.hpp"
 #include "core_sim/earth_utils.hpp"
@@ -88,7 +89,9 @@ class Robot : public Actor {
 
   void SetController(std::unique_ptr<IController> controller);
 
-  void PublishRobotPose(const PoseStampedMessage& pose);
+  void SetPayloadActor(PayloadActor& payload_actor);
+
+  void PublishRobotPose(const PoseMessage& pose);
 
   void SetCallbackKinematicsUpdated(const KinematicsCallback& callback);
 
@@ -151,6 +154,8 @@ class Robot : public Actor {
         const StateManager& state_manager, HomeGeoPoint home_geo_point);
 
   void Load(ConfigJson config_json) override;
+
+  const Kinematics& ComputeAttachedKinematics() const;
 
   class Impl;
   class Loader;

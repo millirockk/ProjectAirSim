@@ -1524,3 +1524,21 @@ class Drone(object):
         }
         success = self.client.request(set_external_force_req)
         return success
+
+    def attach_payload(self, payload_id: str) -> bool:
+        """
+        Attach a payload actor in the scene to a position 0.1m below the drone.
+
+        Args:
+            payload_id (str): the id of the payload actor to attach
+
+        Returns:
+            bool: True if payload is attached successfully
+        """
+        attach_payload_req: Dict = {
+            "method": f"{self.world_parent_topic}/AttachPayloadActor",
+            "params": {"drone_name": self.name, "payload_actor_name": payload_id},
+            "version": 1.0,
+        }
+        success = self.client.request(attach_payload_req)
+        return success

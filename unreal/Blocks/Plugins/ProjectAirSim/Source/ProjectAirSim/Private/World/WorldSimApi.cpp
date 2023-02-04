@@ -392,6 +392,13 @@ void WorldSimApi::RegisterServiceMethods() {
   sim_scene_->RegisterServiceMethod(get_payload_kinematics,
                                     get_payload_kinematics_handler);
 
+  auto attach_payload_actor = projectairsim::ServiceMethod(
+      "AttachPayloadActor", {"drone_name", "payload_actor_name"});
+  auto attach_payload_actor_handler = attach_payload_actor.CreateMethodHandler(
+      &WorldSimApi::AttachPayloadActor, *this);
+  sim_scene_->RegisterServiceMethod(attach_payload_actor,
+                                    attach_payload_actor_handler);
+
   auto hit_test_location = projectairsim::ServiceMethod("HitTest", {"pose"});
   auto hit_test_location_handler =
       hit_test_location.CreateMethodHandler(&WorldSimApi::HitTest, *this);
@@ -1912,6 +1919,32 @@ WorldSimApi::KinematicsMessage WorldSimApi::GetPayloadKinematics(
                       payload_actor_name.c_str());
   }
   return msg;
+}
+
+bool WorldSimApi::AttachPayloadActor(const std::string& drone_name,
+                                     const std::string& payload_actor_name) {
+  auto& actors = sim_scene_->GetActors();
+  int actor_idx = sim_scene_->GetActorIndex(drone_name);
+  auto& actor_ref = actors[actor_idx];
+  auto& actor = static_cast<projectairsim::Robot&>(actor_ref.get());
+
+  auto& payload_actors = sim_scene_->GetPayloadActors();
+  int payload_actor_idx = sim_scene_->GetPayloadActorIndex(payload_actor_name);
+
+  bool success = false;
+  if (payload_actor_idx != -1) {
+    auto& payload_actor_ref = payload_actors[payload_actor_idx];
+    auto& payload_actor =
+        static_cast<projectairsim::PayloadActor&>(payload_actor_ref.get());
+    payload_actor.SetAttachedState(true);
+    actor.SetPayloadActor(payload_actor);
+    success = true;
+  } else {
+    UnrealLogger::Log(projectairsim::LogLevel::kVerbose,
+                      TEXT("PayloadActor '%hs' was not found."),
+                      payload_actor_name.c_str());
+  }
+  return success;
 }
 
 float WorldSimApi::GetZAtPoint(const float x, const float y) {

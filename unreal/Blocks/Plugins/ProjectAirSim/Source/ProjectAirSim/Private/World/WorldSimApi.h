@@ -52,7 +52,7 @@ class WorldSimApi {
 
   typedef microsoft::projectairsim::Transform Pose;
   typedef microsoft::projectairsim::Vector3 Vector3;
-  typedef microsoft::projectairsim::KinematicsMessage KinematicsMessage;  
+  typedef microsoft::projectairsim::KinematicsMessage KinematicsMessage;
 
   Vector3 HitTest(const Pose& pose_from);
 
@@ -260,8 +260,10 @@ class WorldSimApi {
                               const std::string& link_name,
                               const float rotation_deg_per_sec);
 
-  KinematicsMessage GetPayloadKinematics(
-      const std::string& payload_actor_name);
+  KinematicsMessage GetPayloadKinematics(const std::string& payload_actor_name);
+
+  bool AttachPayloadActor(const std::string& drone_name,
+                          const std::string& payload_actor_name);
 
   float GetZAtPoint(const float x, const float y);
 

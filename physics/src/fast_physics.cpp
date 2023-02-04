@@ -368,6 +368,8 @@ void FastPhysicsModel::StepPhysicsBody(TimeNano dt_nanos,
     // Step 1 - Update physics body's data from robot's latest data
     fp_body->ReadActorData();
 
+    Wrench drag_wrench;
+
     // Step 2 - Calculate kinematics without collisions
     if (fp_body->IsStillGrounded()) {
       if (fp_body->sim_robot_.HasWheels())
@@ -378,10 +380,11 @@ void FastPhysicsModel::StepPhysicsBody(TimeNano dt_nanos,
             CalcNextKinematicsGrounded(fp_body->kinematics_.pose.position,
                                        fp_body->kinematics_.pose.orientation);
     } else {
-      next_kin = CalcNextKinematicsNoCollision(dt_sec, fp_body);
+      next_kin = CalcNextKinematicsNoCollision(dt_sec, fp_body, drag_wrench);
     }
 
     // Step 3 - Calculate kinematics with collision response if needed
+    bool is_actual_collision = false;
     if (fp_body->NeedsCollisionResponse(next_kin)) {
       if (fp_body->IsLandingCollision()) {
         // Calculate the landed position to stick at by offsetting back
@@ -400,7 +403,18 @@ void FastPhysicsModel::StepPhysicsBody(TimeNano dt_nanos,
           next_kin = CalcNextKinematicsGrounded(
               landed_position, fp_body->kinematics_.pose.orientation);
       } else {
+        is_actual_collision = true;
         next_kin = CalcNextKinematicsWithCollision(dt_sec, fp_body);
+      }
+    }
+
+    // Do not update payload actor's kinematics from FastPhysics if it is
+    // attached to a drone. Instead, we will update it from the robot.
+    if (fp_body->actor_.GetType() == ActorType::kPayloadActor) {
+      auto& payload_actor = static_cast<PayloadActor&>(fp_body->actor_);
+      if (payload_actor.InAttachedState() && !is_actual_collision) {
+        payload_actor.SetDragFaceWrench(drag_wrench);
+        return;
       }
     }
 
@@ -480,7 +494,8 @@ Kinematics FastPhysicsModel::CalcNextKinematicsWithWheels(
 }
 
 Kinematics FastPhysicsModel::CalcNextKinematicsNoCollision(
-    TimeSec dt_sec, std::shared_ptr<FastPhysicsBody>& fp_body) {
+    TimeSec dt_sec, std::shared_ptr<FastPhysicsBody>& fp_body,
+    Wrench& drag_wrench) {
   const auto& cur_kin = fp_body->kinematics_;
   const auto& external_wrench = fp_body->external_wrench_;
   const auto& drag_faces = fp_body->drag_faces_;
@@ -515,9 +530,9 @@ Kinematics FastPhysicsModel::CalcNextKinematicsNoCollision(
   //   Step 1b - Calculate drag wrench from body's drag face cross-sectional
   //   areas and cur velocity.
 
-  const Wrench drag_wrench = CalcDragFaceWrench(
-      ave_vel_lin, ave_vel_ang, drag_faces, cur_kin.pose.orientation,
-      env_air_density, env_wind_velocity);
+  drag_wrench = CalcDragFaceWrench(ave_vel_lin, ave_vel_ang, drag_faces,
+                                   cur_kin.pose.orientation, env_air_density,
+                                   env_wind_velocity);
 
   //   Step 1c - Calculate lift-drag wrenches
 

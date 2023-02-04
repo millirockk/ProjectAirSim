@@ -37,7 +37,7 @@ class PayloadActor::Loader {
 
 class PayloadActor::Impl : public ActorImpl {
  public:
-  Impl(const std::string& id, const Pose& origin, const Logger& logger,
+  Impl(const std::string& id, const Transform& origin, const Logger& logger,
        const TopicManager& topic_manager, const std::string& parent_topic_path,
        const ServiceManager& service_manager,
        const StateManager& state_manager);
@@ -59,9 +59,15 @@ class PayloadActor::Impl : public ActorImpl {
   void UpdateKinematics(const Kinematics& kinematics);
   void SetCallbackKinematicsUpdated(const KinematicsCallback& callback);
 
+  const bool InAttachedState() const;
+  void SetAttachedState(const bool to_attach);
+
   bool GetStartLanded() const;
   void SetStartLanded(bool start_landed);
   void SetHomeGeoPoint(const HomeGeoPoint& home_geo_point);
+
+  const Wrench& GetDragFaceWrench() const;
+  void SetDragFaceWrench(const Wrench& drag_wrench);
 
   void CreateTopics();
   void OnBeginUpdate() override;
@@ -78,9 +84,12 @@ class PayloadActor::Impl : public ActorImpl {
   CollisionInfo collision_info_;
   Kinematics kinematics_;
   Environment environment_;
-  Pose relative_offset_;
   bool in_attached_state_ = false;
   bool start_landed_;
+
+  Wrench drag_wrench_;
+
+  // add inertia, mass, and dragwrench
 
   KinematicsCallback callback_kinematics_updated_;
 
@@ -94,7 +103,7 @@ class PayloadActor::Impl : public ActorImpl {
 
 PayloadActor::PayloadActor() : Actor(nullptr) {}
 
-PayloadActor::PayloadActor(const std::string& id, const Pose& origin,
+PayloadActor::PayloadActor(const std::string& id, const Transform& origin,
                            const Logger& logger,
                            const TopicManager& topic_manager,
                            const std::string& parent_topic_path,
@@ -109,7 +118,7 @@ PayloadActor::PayloadActor(const std::string& id, const Pose& origin,
 }
 
 void PayloadActor::Load(ConfigJson config_json) {
-  return static_cast<PayloadActor::Impl*>(pimpl_.get())->Load(config_json);
+  static_cast<PayloadActor::Impl*>(pimpl_.get())->Load(config_json);
 }
 
 const std::vector<Link>& PayloadActor::GetLinks() const {
@@ -132,13 +141,15 @@ void PayloadActor::UpdateEnvironment() {
   static_cast<PayloadActor::Impl*>(pimpl_.get())->UpdateEnvironment();
 }
 
-const Transform& PayloadActor::GetPoseOffset() const {
-  return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetPoseOffset();
+void PayloadActor::UpdateKinematics(const Kinematics& kinematics) {
+  static_cast<PayloadActor::Impl*>(pimpl_.get())->UpdateKinematics(kinematics);
 }
 
-void PayloadActor::UpdateKinematics(const Kinematics& kinematics) {
-  return static_cast<PayloadActor::Impl*>(pimpl_.get())
-      ->UpdateKinematics(kinematics);
+const bool PayloadActor::InAttachedState() const {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())->InAttachedState();
+}
+void PayloadActor::SetAttachedState(const bool to_attach) {
+  static_cast<PayloadActor::Impl*>(pimpl_.get())->SetAttachedState(to_attach);
 }
 
 bool PayloadActor::GetStartLanded() const {
@@ -149,8 +160,16 @@ void PayloadActor::SetStartLanded(bool start_landed) {
   static_cast<PayloadActor::Impl*>(pimpl_.get())->SetStartLanded(start_landed);
 }
 
+const Wrench& PayloadActor::GetDragFaceWrench() const {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetDragFaceWrench();
+}
+void PayloadActor::SetDragFaceWrench(const Wrench& drag_wrench) {
+  static_cast<PayloadActor::Impl*>(pimpl_.get())
+      ->SetDragFaceWrench(drag_wrench);
+}
+
 void PayloadActor::BeginUpdate() {
-  return static_cast<PayloadActor::Impl*>(pimpl_.get())->BeginUpdate();
+  static_cast<PayloadActor::Impl*>(pimpl_.get())->BeginUpdate();
 }
 
 void PayloadActor::EndUpdate() {
@@ -179,7 +198,7 @@ void PayloadActor::SetCallbackKinematicsUpdated(
 // -----------------------------------------------------------------------------
 // class PayloadActor::Impl
 
-PayloadActor::Impl::Impl(const std::string& id, const Pose& origin,
+PayloadActor::Impl::Impl(const std::string& id, const Transform& origin,
                          const Logger& logger,
                          const TopicManager& topic_manager,
                          const std::string& parent_topic_path,
@@ -234,10 +253,6 @@ const Kinematics& PayloadActor::Impl::GetKinematics() const {
   return kinematics_;
 }
 
-const Transform& PayloadActor::Impl::GetPoseOffset() const {
-  return relative_offset_;
-}
-
 void PayloadActor::Impl::UpdateKinematics(const Kinematics& kinematics) {
   std::lock_guard<std::mutex> lock(update_lock_);
   kinematics_ = kinematics;
@@ -255,6 +270,14 @@ void PayloadActor::Impl::UpdateKinematics(const Kinematics& kinematics) {
   topic_manager_.PublishTopic(payload_actor_pose_topic_, pose_msg);
 }
 
+const bool PayloadActor::Impl::InAttachedState() const {
+  return in_attached_state_;
+}
+
+void PayloadActor::Impl::SetAttachedState(const bool to_attach) {
+  in_attached_state_ = to_attach;
+}
+
 const Environment& PayloadActor::Impl::GetEnvironment() const {
   return environment_;
 }
@@ -268,6 +291,15 @@ bool PayloadActor::Impl::GetStartLanded() const { return start_landed_; }
 
 void PayloadActor::Impl::SetStartLanded(bool start_landed) {
   start_landed_ = start_landed;
+}
+
+const Wrench& PayloadActor::Impl::GetDragFaceWrench() const {
+  return drag_wrench_;
+}
+
+void PayloadActor::Impl::SetDragFaceWrench(const Wrench& drag_wrench) {
+  std::lock_guard<std::mutex> lock(update_lock_);
+  drag_wrench_ = drag_wrench;
 }
 
 void PayloadActor::Impl::SetHomeGeoPoint(const HomeGeoPoint& home_geo_point) {

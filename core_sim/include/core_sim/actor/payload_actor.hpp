@@ -14,6 +14,7 @@
 #include "core_sim/link.hpp"
 #include "core_sim/logger.hpp"
 #include "core_sim/message/pose_message.hpp"
+#include "core_sim/physics_common_types.hpp"
 
 namespace microsoft {
 namespace projectairsim {
@@ -29,7 +30,6 @@ class PayloadActor : public Actor {
   PayloadActor();
 
   typedef std::function<void(const Kinematics&, TimeNano)> KinematicsCallback;
-  typedef microsoft::projectairsim::Transform Pose;
 
   //---------------------------------------------------------------------------
   // Static config/model
@@ -46,7 +46,6 @@ class PayloadActor : public Actor {
 
   const Kinematics& GetKinematics() const;
   void UpdateKinematics(const Kinematics& kinematics);
-  const Pose& GetPoseOffset() const;
   const Environment& GetEnvironment() const;
   void UpdateEnvironment();
 
@@ -56,14 +55,21 @@ class PayloadActor : public Actor {
 
   void SetCallbackKinematicsUpdated(const KinematicsCallback& callback);
 
+  const bool InAttachedState() const;
+  void SetAttachedState(const bool to_attach);
+
+  const Wrench& GetDragFaceWrench() const;
+  void SetDragFaceWrench(const Wrench& drag_wrench);
+
   void BeginUpdate();
   void EndUpdate();
 
  private:
   friend class Scene;
+  friend class Robot;
 
-  PayloadActor(const std::string& id, const Pose& origin, const Logger& logger,
-               const TopicManager& topic_manager,
+  PayloadActor(const std::string& id, const Transform& origin,
+               const Logger& logger, const TopicManager& topic_manager,
                const std::string& parent_topic_path,
                const ServiceManager& service_manager,
                const StateManager& state_manager, HomeGeoPoint home_geo_point);

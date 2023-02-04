@@ -106,7 +106,8 @@ class FastPhysicsModel {
                                         const Quaternion& orientation);
 
   Kinematics CalcNextKinematicsNoCollision(
-      TimeSec dt_sec, std::shared_ptr<FastPhysicsBody>& fp_body);
+      TimeSec dt_sec, std::shared_ptr<FastPhysicsBody>& fp_body,
+      Wrench& drag_wrench);
 
   Kinematics CalcNextKinematicsWithCollision(
       TimeSec dt_sec, std::shared_ptr<FastPhysicsBody>& fp_body);
