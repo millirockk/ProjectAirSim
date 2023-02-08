@@ -399,6 +399,13 @@ void WorldSimApi::RegisterServiceMethods() {
   sim_scene_->RegisterServiceMethod(attach_payload_actor,
                                     attach_payload_actor_handler);
 
+  auto detach_payload_actor =
+      projectairsim::ServiceMethod("DetachPayloadActor", {"drone_name"});
+  auto detach_payload_actor_handler = detach_payload_actor.CreateMethodHandler(
+      &WorldSimApi::DetachPayloadActor, *this);
+  sim_scene_->RegisterServiceMethod(detach_payload_actor,
+                                    detach_payload_actor_handler);
+
   auto hit_test_location = projectairsim::ServiceMethod("HitTest", {"pose"});
   auto hit_test_location_handler =
       hit_test_location.CreateMethodHandler(&WorldSimApi::HitTest, *this);
@@ -1928,6 +1935,14 @@ bool WorldSimApi::AttachPayloadActor(const std::string& drone_name,
   auto& actor_ref = actors[actor_idx];
   auto& actor = static_cast<projectairsim::Robot&>(actor_ref.get());
 
+  if (actor.GetPayloadActor()) {
+    UnrealLogger::Log(
+        projectairsim::LogLevel::kVerbose,
+        TEXT("Drone '%hs' is already carrying PayloadActor '%hs'."),
+        drone_name.c_str(), actor.GetPayloadActor()->GetID().c_str());
+    return false;
+  }
+
   auto& payload_actors = sim_scene_->GetPayloadActors();
   int payload_actor_idx = sim_scene_->GetPayloadActorIndex(payload_actor_name);
 
@@ -1936,6 +1951,14 @@ bool WorldSimApi::AttachPayloadActor(const std::string& drone_name,
     auto& payload_actor_ref = payload_actors[payload_actor_idx];
     auto& payload_actor =
         static_cast<projectairsim::PayloadActor&>(payload_actor_ref.get());
+
+    if (payload_actor.InAttachedState()) {
+      UnrealLogger::Log(
+          projectairsim::LogLevel::kVerbose,
+          TEXT("PayloadActor '%hs' is already attached to a drone."),
+          payload_actor_name.c_str());
+      return false;
+    }
     payload_actor.SetAttachedState(true);
     actor.SetPayloadActor(payload_actor);
     success = true;
@@ -1945,6 +1968,25 @@ bool WorldSimApi::AttachPayloadActor(const std::string& drone_name,
                       payload_actor_name.c_str());
   }
   return success;
+}
+
+bool WorldSimApi::DetachPayloadActor(const std::string& drone_name) {
+  auto& actors = sim_scene_->GetActors();
+  int actor_idx = sim_scene_->GetActorIndex(drone_name);
+  auto& actor_ref = actors[actor_idx];
+  auto& actor = static_cast<projectairsim::Robot&>(actor_ref.get());
+  projectairsim::PayloadActor* payload_actor = actor.GetPayloadActor();
+
+  if (!payload_actor) {
+    UnrealLogger::Log(projectairsim::LogLevel::kVerbose,
+                      TEXT("Drone '%hs' is not carrying a PayloadActor."),
+                      drone_name.c_str());
+    return false;
+  } else {
+    payload_actor->SetAttachedState(false);
+    actor.ClearPayloadActor();
+  }
+  return true;
 }
 
 float WorldSimApi::GetZAtPoint(const float x, const float y) {

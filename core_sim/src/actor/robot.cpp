@@ -101,8 +101,8 @@ class Robot::Impl : public ActorImpl {
   void SetController(std::unique_ptr<IController> controller);
 
   void SetPayloadActor(PayloadActor& payload_actor);
-
-  const Kinematics& ComputeAttachedKinematics() const;
+  PayloadActor* GetPayloadActor() const;
+  void ClearPayloadActor();
 
   void OnBeginUpdate() override;
 
@@ -203,8 +203,7 @@ class Robot::Impl : public ActorImpl {
   std::vector<std::unique_ptr<Actuator>> actuators_;
   std::vector<std::reference_wrapper<Actuator>> actuators_ref_;
 
-  PayloadActor* payload_actor_;
-  Pose payload_offset_ = Pose(Vector3(0, 0, 0.1), Quaternion::Identity());
+  PayloadActor* payload_actor_ = nullptr;
 
   Topic actual_robot_pose_topic_;
   Topic desired_robot_pose_topic_;
@@ -341,8 +340,12 @@ void Robot::SetPayloadActor(PayloadActor& payload_actor) {
   static_cast<Robot::Impl*>(pimpl_.get())->SetPayloadActor(payload_actor);
 }
 
-const Kinematics& Robot::ComputeAttachedKinematics() const {
-  return static_cast<Robot::Impl*>(pimpl_.get())->ComputeAttachedKinematics();
+PayloadActor* Robot::GetPayloadActor() const {
+  return static_cast<Robot::Impl*>(pimpl_.get())->GetPayloadActor();
+}
+
+void Robot::ClearPayloadActor() {
+  static_cast<Robot::Impl*>(pimpl_.get())->ClearPayloadActor();
 }
 
 void Robot::PublishRobotPose(const PoseMessage& pose) {
@@ -758,17 +761,19 @@ void Robot::Impl::SetController(std::unique_ptr<IController> controller) {
 }
 
 void Robot::Impl::SetPayloadActor(PayloadActor& payload_actor) {
+  Vector3 pos_offset(payload_actor.GetKinematics().pose.position.x() -
+                         kinematics_.pose.position.x(),
+                     payload_actor.GetKinematics().pose.position.y() -
+                         kinematics_.pose.position.y(),
+                     payload_actor.GetKinematics().pose.position.z() -
+                         kinematics_.pose.position.z());
+  payload_actor.SetPoseOffset(Pose(pos_offset, kinematics_.pose.orientation));
   payload_actor_ = &payload_actor;
 }
 
-const Kinematics& Robot::Impl::ComputeAttachedKinematics() const {
-  Vector3 new_pos(kinematics_.pose.position.x() + payload_offset_.position.x(),
-                  kinematics_.pose.position.y() + payload_offset_.position.y(),
-                  kinematics_.pose.position.z() + payload_offset_.position.z());
+PayloadActor* Robot::Impl::GetPayloadActor() const { return payload_actor_; }
 
-  return Kinematics(Pose(new_pos, kinematics_.pose.orientation),
-                    kinematics_.twist, kinematics_.accels);
-}
+void Robot::Impl::ClearPayloadActor() { payload_actor_ = nullptr; }
 
 Link* Robot::Impl::GetLink(const std::string& id) {
   for (auto& link : links_) {
@@ -862,8 +867,6 @@ void Robot::Impl::OnEndUpdate() {
   // Clear all topic callbacks to nullptr
   callback_kinematics_updated_ = nullptr;
   callback_actuated_transforms_updated_ = nullptr;
-  delete payload_actor_;  // is it dangerous to delete the payload actor here
-                          // since it will get deleted on its own?
   payload_actor_ = nullptr;
 
   // Unregister all topics
@@ -1187,10 +1190,6 @@ void Robot::Impl::UpdateKinematics(const Kinematics& kinematics,
 
   // Copy new kinematics to robot's kinematics_
   kinematics_ = kinematics;
-
-  if (payload_actor_ && payload_actor_->InAttachedState()) {
-    payload_actor_->UpdateKinematics(ComputeAttachedKinematics());
-  }
 
   TimeNano time_stamp = external_time_stamp == -1
                             ? SimClock::Get()->NowSimNanos()

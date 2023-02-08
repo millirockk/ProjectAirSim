@@ -16,7 +16,7 @@
             "type": "payload_actor",
             "name": "Payload",
             "origin": {
-            "xyz": "1.0 8.0 -5.0",
+            "xyz": "5.0 8.0 -4.0",
             "rpy-deg": "0 0 0"
         },
         "payload-actor-config": "payload_actor.jsonc"

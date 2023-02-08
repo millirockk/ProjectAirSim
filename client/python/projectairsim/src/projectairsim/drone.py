@@ -1527,7 +1527,8 @@ class Drone(object):
 
     def attach_payload(self, payload_id: str) -> bool:
         """
-        Attach a payload actor in the scene to a position 0.1m below the drone.
+        Attach a payload actor in the scene below the drone. The position offset between 
+        the drone and payload at the time of this call will be saved.
 
         Args:
             payload_id (str): the id of the payload actor to attach
@@ -1541,4 +1542,19 @@ class Drone(object):
             "version": 1.0,
         }
         success = self.client.request(attach_payload_req)
+        return success
+
+    def detach_payload(self) -> bool:
+        """
+        Detaches the payload actor from the drone.
+
+        Returns:
+            bool: True if payload is detached successfully
+        """
+        detach_payload_req: Dict = {
+            "method": f"{self.world_parent_topic}/DetachPayloadActor",
+            "params": {"drone_name": self.name},
+            "version": 1.0,
+        }
+        success = self.client.request(detach_payload_req)
         return success

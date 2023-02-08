@@ -27,7 +27,7 @@ FastPhysicsBody::FastPhysicsBody(Actor& actor) : actor_(actor) {
   InitializeFastPhysicsBody(actor);
 }
 
-void FastPhysicsBody::InitializeFastPhysicsBody(const Actor& actor) {
+void FastPhysicsBody::InitializeFastPhysicsBody(Actor& actor) {
   external_wrench_points_.clear();
   lift_drag_control_angles_.clear();
   std::vector<Link> links;
@@ -58,14 +58,18 @@ void FastPhysicsBody::InitializeFastPhysicsBody(const Actor& actor) {
                                         &control_surface_ref.GetControlAngle());
     }
   } else if (actor.GetType() == ActorType::kPayloadActor) {
-    const auto& payload_actor = static_cast<const PayloadActor&>(actor);
+    auto& payload_actor = static_cast<PayloadActor&>(actor);
     links = payload_actor.GetLinks();
     is_grounded_ = payload_actor.GetStartLanded();
+    payload_actor.SetMass(links.at(0).GetInertial().GetMass());
   }
 
-  SetMass(root_link.GetInertial().GetMass());  // TODO accumulate link masses?
+  const auto& root_link = links.at(0);  // TODO allow config to choose root link
+  original_mass_ = root_link.GetInertial().GetMass();
+  SetMass(original_mass_);  // TODO accumulate link masses?
 
   auto inertia = CalculateInertia(links);
+  original_inertia_ = inertia;
   SetInertia(inertia);
 
   drag_faces_ = InitializeDragFaces(links);
@@ -254,6 +258,19 @@ void FastPhysicsBody::ReadActorData() {
     collision_info_ = sim_robot.GetCollisionInfo();
     ext_force_ = sim_robot.GetExternalForce();
     cur_env = sim_robot.GetEnvironment();
+
+    PayloadActor* payload_actor = sim_robot.GetPayloadActor();
+    if (payload_actor) {
+      mass_ = original_mass_ + payload_actor->GetMass();
+      mass_inv_ = 1.0f / mass_;
+      inertia_ = original_inertia_ + payload_actor->GetInertiaMatrix();
+      inertia_inv_ = inertia_.inverse();
+    } else {
+      mass_ = original_mass_;
+      mass_inv_ = 1.0f / mass_;
+      inertia_ = original_inertia_;
+      inertia_inv_ = inertia_.inverse();
+    }
   } else if (actor_.GetType() == ActorType::kPayloadActor) {
     const auto& payload_actor = static_cast<const PayloadActor&>(actor_);
     kinematics_ = payload_actor.GetKinematics();
@@ -271,9 +288,12 @@ void FastPhysicsBody::WriteActorData(const Kinematics& kinematics,
   if (actor_.GetType() == ActorType::kRobot) {
     auto& sim_robot = static_cast<Robot&>(actor_);
     sim_robot.UpdateKinematics(kinematics, external_time_stamp);
+    if (sim_robot.GetPayloadActor())
+      sim_robot.GetPayloadActor()->UpdateKinematics(kinematics);
   } else if (actor_.GetType() == ActorType::kPayloadActor) {
     auto& payload_actor = static_cast<PayloadActor&>(actor_);
-    payload_actor.UpdateKinematics(kinematics);
+    if (!payload_actor.InAttachedState())
+      payload_actor.UpdateKinematics(kinematics);
   }
 }
 
@@ -414,7 +434,6 @@ void FastPhysicsModel::StepPhysicsBody(TimeNano dt_nanos,
       auto& payload_actor = static_cast<PayloadActor&>(fp_body->actor_);
       if (payload_actor.InAttachedState() && !is_actual_collision) {
         payload_actor.SetDragFaceWrench(drag_wrench);
-        return;
       }
     }
 
@@ -541,6 +560,7 @@ Kinematics FastPhysicsModel::CalcNextKinematicsNoCollision(
       ave_vel_lin, env_air_density, env_wind_velocity);
 
   // Step 2 - Calculate total wrench on body
+  // TODO: incorporate external wrench from payload drag faces
 
   const Wrench total_wrench = external_wrench + drag_wrench + lift_drag_wrench;
 

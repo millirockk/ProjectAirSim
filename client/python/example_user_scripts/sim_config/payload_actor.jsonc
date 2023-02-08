@@ -3,7 +3,7 @@
         {
           "name": "Frame",
           "inertial": {
-            "mass": 1.0,
+            "mass": 0.2,
             "inertia": {
               "type": "geometry",
               "geometry": {

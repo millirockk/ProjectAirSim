@@ -48,6 +48,8 @@ class PayloadActor : public Actor {
   void UpdateKinematics(const Kinematics& kinematics);
   const Environment& GetEnvironment() const;
   void UpdateEnvironment();
+  const Pose& GetPoseOffset() const;
+  void SetPoseOffset(const Pose& offset);
 
   const CollisionInfo& GetCollisionInfo() const;
   void UpdateCollisionInfo(const CollisionInfo& collision_info);
@@ -60,6 +62,9 @@ class PayloadActor : public Actor {
 
   const Wrench& GetDragFaceWrench() const;
   void SetDragFaceWrench(const Wrench& drag_wrench);
+  const Matrix3x3& GetInertiaMatrix() const;
+  const float GetMass() const;
+  void SetMass(const float mass);
 
   void BeginUpdate();
   void EndUpdate();
@@ -75,6 +80,10 @@ class PayloadActor : public Actor {
                const StateManager& state_manager, HomeGeoPoint home_geo_point);
 
   void Load(ConfigJson config_json) override;
+
+  const Kinematics& ComputeAttachedKinematics(
+      const Kinematics& kinematics) const;
+  void ComputeInertiaMatrix();
 
   class Impl;
   class Loader;

@@ -25,7 +25,7 @@ class FastPhysicsBody : public BasePhysicsBody {
   explicit FastPhysicsBody(Actor& actor);
   ~FastPhysicsBody() override {}
 
-  void InitializeFastPhysicsBody(const Actor& actor);
+  void InitializeFastPhysicsBody(Actor& actor);
 
   // Aggregate all externally applied wrenches on body CG into wrench_
   void CalculateExternalWrench() override;
@@ -71,6 +71,9 @@ class FastPhysicsBody : public BasePhysicsBody {
   friend class FastPhysicsModel;
 
   Actor& actor_;
+
+  float original_mass_;
+  Matrix3x3 original_inertia_;
 
   bool is_grounded_;
   Vector3 env_gravity_;

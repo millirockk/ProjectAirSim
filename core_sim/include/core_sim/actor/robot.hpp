@@ -90,6 +90,8 @@ class Robot : public Actor {
   void SetController(std::unique_ptr<IController> controller);
 
   void SetPayloadActor(PayloadActor& payload_actor);
+  PayloadActor* GetPayloadActor() const;
+  void ClearPayloadActor();
 
   void PublishRobotPose(const PoseMessage& pose);
 
@@ -154,8 +156,6 @@ class Robot : public Actor {
         const StateManager& state_manager, HomeGeoPoint home_geo_point);
 
   void Load(ConfigJson config_json) override;
-
-  const Kinematics& ComputeAttachedKinematics() const;
 
   class Impl;
   class Loader;

@@ -51,6 +51,7 @@ class PayloadActor::Impl : public ActorImpl {
   void SetHasCollided(bool has_collided);
 
   const Pose& GetPoseOffset() const;
+  void SetPoseOffset(const Pose& offset);
   const Environment& GetEnvironment() const;
   void UpdateEnvironment();
 
@@ -58,6 +59,8 @@ class PayloadActor::Impl : public ActorImpl {
   const Kinematics& GetKinematics() const;
   void UpdateKinematics(const Kinematics& kinematics);
   void SetCallbackKinematicsUpdated(const KinematicsCallback& callback);
+  const Kinematics& ComputeAttachedKinematics(
+      const Kinematics& kinematics) const;
 
   const bool InAttachedState() const;
   void SetAttachedState(const bool to_attach);
@@ -68,6 +71,10 @@ class PayloadActor::Impl : public ActorImpl {
 
   const Wrench& GetDragFaceWrench() const;
   void SetDragFaceWrench(const Wrench& drag_wrench);
+  const Matrix3x3& GetInertiaMatrix() const;
+  void ComputeInertiaMatrix();
+  const float GetMass() const;
+  void SetMass(const float mass);
 
   void CreateTopics();
   void OnBeginUpdate() override;
@@ -87,9 +94,10 @@ class PayloadActor::Impl : public ActorImpl {
   bool in_attached_state_ = false;
   bool start_landed_;
 
+  Pose payload_offset_;
   Wrench drag_wrench_;
-
-  // add inertia, mass, and dragwrench
+  Matrix3x3 inertia_;
+  float mass_;
 
   KinematicsCallback callback_kinematics_updated_;
 
@@ -141,8 +149,18 @@ void PayloadActor::UpdateEnvironment() {
   static_cast<PayloadActor::Impl*>(pimpl_.get())->UpdateEnvironment();
 }
 
+void PayloadActor::SetPoseOffset(const Pose& offset) {
+  static_cast<PayloadActor::Impl*>(pimpl_.get())->SetPoseOffset(offset);
+}
+
 void PayloadActor::UpdateKinematics(const Kinematics& kinematics) {
   static_cast<PayloadActor::Impl*>(pimpl_.get())->UpdateKinematics(kinematics);
+}
+
+const Kinematics& PayloadActor::ComputeAttachedKinematics(
+    const Kinematics& kinematics) const {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())
+      ->ComputeAttachedKinematics(kinematics);
 }
 
 const bool PayloadActor::InAttachedState() const {
@@ -166,6 +184,22 @@ const Wrench& PayloadActor::GetDragFaceWrench() const {
 void PayloadActor::SetDragFaceWrench(const Wrench& drag_wrench) {
   static_cast<PayloadActor::Impl*>(pimpl_.get())
       ->SetDragFaceWrench(drag_wrench);
+}
+
+const Matrix3x3& PayloadActor::GetInertiaMatrix() const {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetInertiaMatrix();
+}
+
+void PayloadActor::ComputeInertiaMatrix() {
+  static_cast<PayloadActor::Impl*>(pimpl_.get())->ComputeInertiaMatrix();
+}
+
+const float PayloadActor::GetMass() const {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetMass();
+}
+
+void PayloadActor::SetMass(const float mass) {
+  static_cast<PayloadActor::Impl*>(pimpl_.get())->SetMass(mass);
 }
 
 void PayloadActor::BeginUpdate() {
@@ -258,6 +292,9 @@ void PayloadActor::Impl::UpdateKinematics(const Kinematics& kinematics) {
   kinematics_ = kinematics;
   TimeNano time_stamp = SimClock::Get()->NowSimNanos();
 
+  // check if kinematics is drone passthrough
+  if (in_attached_state_) kinematics_ = ComputeAttachedKinematics(kinematics);
+
   // Process callback for updated kinematics
   auto func = callback_kinematics_updated_;
   if (func != nullptr) {
@@ -268,6 +305,17 @@ void PayloadActor::Impl::UpdateKinematics(const Kinematics& kinematics) {
   PoseMessage pose_msg(time_stamp, kinematics_.pose.position,
                        kinematics_.pose.orientation);
   topic_manager_.PublishTopic(payload_actor_pose_topic_, pose_msg);
+}
+
+const Kinematics& PayloadActor::Impl::ComputeAttachedKinematics(
+    const Kinematics& kinematics) const {
+  Vector3 new_pos(kinematics.pose.position.x() + payload_offset_.position.x(),
+                  kinematics.pose.position.y() + payload_offset_.position.y(),
+                  kinematics.pose.position.z() + payload_offset_.position.z());
+
+  return Kinematics(
+      Pose(new_pos, kinematics.pose.orientation * payload_offset_.orientation),
+      kinematics.twist, kinematics.accels);
 }
 
 const bool PayloadActor::Impl::InAttachedState() const {
@@ -287,6 +335,10 @@ void PayloadActor::Impl::UpdateEnvironment() {
   environment_.SetPosition(kinematics_.pose.position);
 }
 
+void PayloadActor::Impl::SetPoseOffset(const Pose& offset) {
+  payload_offset_ = offset;
+}
+
 bool PayloadActor::Impl::GetStartLanded() const { return start_landed_; }
 
 void PayloadActor::Impl::SetStartLanded(bool start_landed) {
@@ -300,6 +352,32 @@ const Wrench& PayloadActor::Impl::GetDragFaceWrench() const {
 void PayloadActor::Impl::SetDragFaceWrench(const Wrench& drag_wrench) {
   std::lock_guard<std::mutex> lock(update_lock_);
   drag_wrench_ = drag_wrench;
+}
+
+const Matrix3x3& PayloadActor::Impl::GetInertiaMatrix() const {
+  return inertia_;
+}
+
+void PayloadActor::Impl::ComputeInertiaMatrix() {
+  // treat payload as a point mass or link attached to drone
+  float dx = payload_offset_.position.x();
+  float dy = payload_offset_.position.y();
+  float dz = payload_offset_.position.z();
+
+  float inertia_dx = mass_ * (dy * dy + dz * dz);
+  float inertia_dy = mass_ * (dx * dx + dz * dz);
+  float inertia_dz = mass_ * (dx * dx + dy * dy);
+
+  inertia_(0, 0) = inertia_dx;
+  inertia_(1, 1) = inertia_dy;
+  inertia_(2, 2) = inertia_dz;
+}
+
+const float PayloadActor::Impl::GetMass() const { return mass_; }
+
+void PayloadActor::Impl::SetMass(const float mass) {
+  mass_ = mass;
+  ComputeInertiaMatrix();
 }
 
 void PayloadActor::Impl::SetHomeGeoPoint(const HomeGeoPoint& home_geo_point) {

@@ -265,6 +265,8 @@ class WorldSimApi {
   bool AttachPayloadActor(const std::string& drone_name,
                           const std::string& payload_actor_name);
 
+  bool DetachPayloadActor(const std::string& drone_name);
+
   float GetZAtPoint(const float x, const float y);
 
  protected:

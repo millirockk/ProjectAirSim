@@ -1170,6 +1170,9 @@ void Scene::Loader::UnloadScene() {
   impl_.env_actors_.clear();
   impl_.env_actors_ref_.clear();
   impl_.env_actor_index_by_id_.clear();
+  impl_.payload_actors_.clear();
+  impl_.payload_actors_ref_.clear();
+  impl_.payload_actor_index_by_id_.clear();
   impl_.trajectories_.clear();
   impl_.is_loaded_ = false;
 }
