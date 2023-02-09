@@ -29,7 +29,8 @@
           "visual": {
             "geometry": {
               "type": "unreal_mesh",
-              "name": "/Drone/Quadrotor1"
+              "name": "/Engine/BasicShapes/Cube",
+              "scale": "0.5 1.0 0.5"
             }
           }
         }

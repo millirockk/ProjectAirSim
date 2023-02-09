@@ -7,6 +7,7 @@ from projectairsim import ProjectAirSimClient, World
 from projectairsim.utils import projectairsim_log
 from typing import Dict
 
+
 class PayloadActor(object):
     def __init__(self, client: ProjectAirSimClient, world: World, name: str):
         """ProjectAirSim Payload Actor Interface

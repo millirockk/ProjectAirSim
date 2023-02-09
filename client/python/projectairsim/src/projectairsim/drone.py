@@ -831,7 +831,12 @@ class Drone(object):
             asyncio.Task: An awaitable task wrapping the async coroutine
         """
 
-        params: Dict = {"yaw": yaw, "timeout_sec": timeout_sec, "margin": margin, "yaw_rate": yaw_rate}
+        params: Dict = {
+            "yaw": yaw,
+            "timeout_sec": timeout_sec,
+            "margin": margin,
+            "yaw_rate": yaw_rate,
+        }
 
         # print("params: {}".format(params))
         req: Dict = {
@@ -1527,7 +1532,7 @@ class Drone(object):
 
     def attach_payload(self, payload_id: str) -> bool:
         """
-        Attach a payload actor in the scene below the drone. The position offset between 
+        Attach a payload actor in the scene below the drone. The position offset between
         the drone and payload at the time of this call will be saved.
 
         Args:
@@ -1557,4 +1562,29 @@ class Drone(object):
             "version": 1.0,
         }
         success = self.client.request(detach_payload_req)
+        return success
+
+    def lower_payload(self, dz: float, v_down: float = 1.0) -> bool:
+        """
+        Lowers payload towards the ground. Assumes payload is already attached
+        and user will call detach_payload() subsequently.
+
+        TODO: make it work with raising payloads too
+
+        Args:
+            dz (float): how much to lower the payload by from the resting
+                        position under the drone (dz >= 0). If dz exceeds the
+                        distance from the resting position to the ground, the payload
+                        will be lowered until it makes contact with the ground.
+            v_down (float): how fast to lower the payload by (v_down > 0)
+
+        Returns:
+            bool: True if payload is lowered successfully
+        """
+        lower_payload_req: Dict = {
+            "method": f"{self.world_parent_topic}/LowerPayloadActor",
+            "params": {"drone_name": self.name, "dz": dz, "vz": v_down},
+            "version": 1.0,
+        }
+        success = self.client.request(lower_payload_req)
         return success

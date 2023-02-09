@@ -153,6 +153,10 @@ void PayloadActor::SetPoseOffset(const Pose& offset) {
   static_cast<PayloadActor::Impl*>(pimpl_.get())->SetPoseOffset(offset);
 }
 
+const Pose& PayloadActor::GetPoseOffset() const {
+  return static_cast<PayloadActor::Impl*>(pimpl_.get())->GetPoseOffset();
+}
+
 void PayloadActor::UpdateKinematics(const Kinematics& kinematics) {
   static_cast<PayloadActor::Impl*>(pimpl_.get())->UpdateKinematics(kinematics);
 }
@@ -313,9 +317,8 @@ const Kinematics& PayloadActor::Impl::ComputeAttachedKinematics(
                   kinematics.pose.position.y() + payload_offset_.position.y(),
                   kinematics.pose.position.z() + payload_offset_.position.z());
 
-  return Kinematics(
-      Pose(new_pos, kinematics.pose.orientation * payload_offset_.orientation),
-      kinematics.twist, kinematics.accels);
+  return Kinematics(Pose(new_pos, payload_offset_.orientation),
+                    kinematics.twist, kinematics.accels);
 }
 
 const bool PayloadActor::Impl::InAttachedState() const {
@@ -336,7 +339,12 @@ void PayloadActor::Impl::UpdateEnvironment() {
 }
 
 void PayloadActor::Impl::SetPoseOffset(const Pose& offset) {
+  std::lock_guard<std::mutex> lock(update_lock_);
   payload_offset_ = offset;
+}
+
+const Pose& PayloadActor::Impl::GetPoseOffset() const {
+  return payload_offset_;
 }
 
 bool PayloadActor::Impl::GetStartLanded() const { return start_landed_; }

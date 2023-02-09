@@ -70,7 +70,7 @@ async def main():
 
         # Command the drone to move up in NED coordinate system at 1 m/s for 3 seconds
         move_up_task = await drone.move_by_velocity_async(
-            v_north=0.0, v_east=0.0, v_down=-1.0, duration=3.0
+            v_north=0.0, v_east=0.0, v_down=-1.0, duration=2.0
         )
         projectairsim_log().info("Move-Up invoked")
 
@@ -108,7 +108,7 @@ async def main():
         await move_north_task
         projectairsim_log().info("Move-North completed")
 
-        # Command the drone to move down in NED coordinate system at 1 m/s for 3.5 seconds
+        # Command the drone to move down in NED coordinate system at 1 m/s for 3.0 seconds
         move_down_task = await drone.move_by_velocity_async(
             v_north=0.0, v_east=0.0, v_down=1.0, duration=3.0
         )
@@ -116,18 +116,33 @@ async def main():
         await move_down_task
         projectairsim_log().info("Move-Down completed")
 
+        await asyncio.sleep(1)
+
+        # Command the drone to lower payload
+        projectairsim_log().info("Lowering payload")
+        success = drone.lower_payload(15)
+        projectairsim_log().info(f"Payload was successfully lowered: {success}")
+
         # Command the drone to detach payload
         projectairsim_log().info("Detaching payload")
         success = drone.detach_payload()
         projectairsim_log().info(f"Payload was successfully detached: {success}")
 
-        # Command the drone to move north in NED coordinate system at 1 m/s for 1 second
+        # Command the drone to move north-east in NED coordinate system at 1 m/s for 1 second
         move_north_task = await drone.move_by_velocity_async(
-            v_north=1.0, v_east=1.0, v_down=0.0, duration=1.0
+            v_north=1.0, v_east=1.0, v_down=0.0, duration=2.0
         )
         projectairsim_log().info("Move-North invoked")
         await move_north_task
         projectairsim_log().info("Move-North completed")
+
+        # Command the drone to move down in NED coordinate system at 2 m/s for 3 seconds
+        move_down_task = await drone.move_by_velocity_async(
+            v_north=0.0, v_east=0.0, v_down=2.0, duration=2.0
+        )
+        projectairsim_log().info("Move-Down invoked")
+        await move_down_task
+        projectairsim_log().info("Move-Down completed")
 
         projectairsim_log().info("land_async: starting")
         land_task = await drone.land_async()

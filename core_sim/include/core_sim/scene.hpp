@@ -117,6 +117,9 @@ class Scene {
       const std::vector<float>& vel_x_lin, const std::vector<float>& vel_y_lin,
       const std::vector<float>& vel_z_lin);
 
+  bool LowerPayloadActorServiceMethod(const std::string& drone_name,
+                                      const float dz, const float vz);
+
   void RegisterServiceMethod(const ServiceMethod& method,
                              MethodHandler method_handler);
 

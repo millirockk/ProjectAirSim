@@ -179,6 +179,9 @@ class Scene::Impl : public ComponentWithTopicsAndServiceMethods {
   Vector3 GetWindVelocity();
   void UpdateWindVelocity();
 
+  bool LowerPayloadActorServiceMethod(const std::string& drone_name,
+                                      const float dz, const float vz);
+
   std::string CallBackAfter(int t_secs);
 
   void RegisterServiceMethod(const ServiceMethod& method,
@@ -380,6 +383,11 @@ const Vector3 Scene::GetWindVelocity() const {
   return pimpl_->GetWindVelocity();
 }
 
+bool Scene::LowerPayloadActorServiceMethod(const std::string& drone_name,
+                                           const float dz, const float vz) {
+  return pimpl_->LowerPayloadActorServiceMethod(drone_name, dz, vz);
+}
+
 void Scene::AddNEDTrajectory(
     const std::string& traj_name, const std::vector<float>& time,
     const std::vector<float>& pose_x, const std::vector<float>& pose_y,
@@ -503,6 +511,44 @@ void Scene::Impl::UpdateWindVelocity() {
   if (wind_velocity_updated_func != nullptr) {
     wind_velocity_updated_func(GetWindVelocity());
   }
+}
+
+bool Scene::Impl::LowerPayloadActorServiceMethod(const std::string& drone_name,
+                                                 const float dz,
+                                                 const float vz) {
+  TimeSec start = SimClock::Get()->NowSimSec();
+  TimeSec curr_time = start;
+  TimeSec timeout = 180;  // 3 minutes seems reasonable
+
+  auto& actors = GetActors();
+  int actor_idx = GetActorIndex(drone_name);
+  auto& actor_ref = actors[actor_idx];
+  auto& actor = static_cast<Robot&>(actor_ref.get());
+  PayloadActor* payload_actor = actor.GetPayloadActor();
+
+  if (!payload_actor) {
+    logger_.LogError(name_, "Drone '%hs' is not attached to a PayloadActor.",
+                     drone_name.c_str());
+    throw Error("Drone is not attached to a PayloadActor.");
+  } else {
+    Vector3 payload_pos = payload_actor->GetPoseOffset().position;
+    float z = payload_pos.z();
+    float z_final = z + dz;
+
+    while (z < z_final) {
+      auto payload_collision_info = payload_actor->GetCollisionInfo();
+      if (payload_collision_info.has_collided) break;
+
+      z = z + vz * (SimClock::Get()->NowSimSec() - curr_time);
+      Vector3 new_pos(payload_pos.x(), payload_pos.y(), z);
+      payload_actor->SetPoseOffset(
+          Pose(new_pos, payload_actor->GetPoseOffset().orientation));
+
+      if (curr_time - start > timeout) return false;
+      curr_time = SimClock::Get()->NowSimSec();
+    }  // TODO: split into robot.cpp?
+  }
+  return true;
 }
 
 void Scene::Impl::SetCallbackPhysicsStart(
@@ -917,6 +963,12 @@ void Scene::Impl::RegisterServiceMethods() {
   auto get_wind_vel_handler =
       get_wind_vel.CreateMethodHandler(&Scene::Impl::GetWindVelocity, *this);
   RegisterServiceMethod(get_wind_vel, get_wind_vel_handler);
+
+  auto lower_payload_actor =
+      ServiceMethod("LowerPayloadActor", {"drone_name", "dz", "vz"});
+  auto lower_payload_actor_handler = lower_payload_actor.CreateMethodHandler(
+      &Scene::Impl::LowerPayloadActorServiceMethod, *this);
+  RegisterServiceMethod(lower_payload_actor, lower_payload_actor_handler);
 }
 
 void Scene::Impl::UnregisterAllServiceMethods() {
