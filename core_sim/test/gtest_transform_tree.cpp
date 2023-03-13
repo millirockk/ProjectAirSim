@@ -310,3 +310,36 @@ TEST(TransformTree, ConvertSemiCross) {
   EXPECT_NEAR(poseA.orientation.z(), poseAStart.orientation.z(), 1.0e-6);
   EXPECT_NEAR(poseA.orientation.w(), poseAStart.orientation.w(), 1.0e-6);
 }
+
+TEST(TransformTree, NonzeroRelativePositionAndTiltedFrame) {
+  constexpr float ap_x = 0.0f;
+  constexpr float ap_y = 0.0f;
+  constexpr float ap_z = 0.0f;
+  projectairsim::Quaternion quatA =
+      projectairsim::TransformUtils::ToQuaternion(M_PI / 4, 0.0f, 0.0f);
+  projectairsim::TransformTree::StaticRefFrame staticrefframeA("A");
+  projectairsim::TransformTree transformtree;
+  projectairsim::Pose poseA ;
+  poseA.position.z() = -1.0f;
+  projectairsim::Pose poseGlobal;
+
+  staticrefframeA.SetLocalPose(
+      projectairsim::Pose(projectairsim::Vector3(ap_x, ap_y, ap_z), quatA));
+
+  transformtree.Register(&staticrefframeA,
+                         projectairsim::TransformTree::kRefFrameGlobal);
+  transformtree.Convert(poseA, staticrefframeA,
+                        projectairsim::TransformTree::kRefFrameGlobal,
+                        &poseGlobal);
+
+  // Verify the identity pose in A's reference frame is transformed into A's
+  // pose in the global reference frame
+  EXPECT_FLOAT_EQ(poseGlobal.position.x(), ap_x);
+  EXPECT_NEAR(poseGlobal.position.y(), -(std::sin(M_PI / 4)), 1.0e-6);
+  EXPECT_NEAR(poseGlobal.position.z(), -(std::cos(M_PI / 4)), 1.0e-6);
+
+  EXPECT_FLOAT_EQ(poseGlobal.orientation.x(), quatA.x());
+  EXPECT_FLOAT_EQ(poseGlobal.orientation.y(), quatA.y());
+  EXPECT_FLOAT_EQ(poseGlobal.orientation.z(), quatA.z());
+  EXPECT_FLOAT_EQ(poseGlobal.orientation.w(), quatA.w());
+}
