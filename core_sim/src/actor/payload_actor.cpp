@@ -59,7 +59,7 @@ class PayloadActor::Impl : public ActorImpl {
   const Kinematics& GetKinematics() const;
   void UpdateKinematics(const Kinematics& kinematics);
   void SetCallbackKinematicsUpdated(const KinematicsCallback& callback);
-  const Kinematics& ComputeAttachedKinematics(
+  const Kinematics ComputeAttachedKinematics(
       const Kinematics& kinematics) const;
 
   const bool InAttachedState() const;
@@ -161,7 +161,7 @@ void PayloadActor::UpdateKinematics(const Kinematics& kinematics) {
   static_cast<PayloadActor::Impl*>(pimpl_.get())->UpdateKinematics(kinematics);
 }
 
-const Kinematics& PayloadActor::ComputeAttachedKinematics(
+const Kinematics PayloadActor::ComputeAttachedKinematics(
     const Kinematics& kinematics) const {
   return static_cast<PayloadActor::Impl*>(pimpl_.get())
       ->ComputeAttachedKinematics(kinematics);
@@ -311,7 +311,7 @@ void PayloadActor::Impl::UpdateKinematics(const Kinematics& kinematics) {
   topic_manager_.PublishTopic(payload_actor_pose_topic_, pose_msg);
 }
 
-const Kinematics& PayloadActor::Impl::ComputeAttachedKinematics(
+const Kinematics PayloadActor::Impl::ComputeAttachedKinematics(
     const Kinematics& kinematics) const {
   Vector3 new_pos(kinematics.pose.position.x() + payload_offset_.position.x(),
                   kinematics.pose.position.y() + payload_offset_.position.y(),

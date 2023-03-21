@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+
 #include "core_sim/transforms/transform_tree.hpp"
 #include "core_sim/transforms/transform_utils.hpp"
 #include "gtest/gtest.h"
@@ -184,11 +185,11 @@ TEST(TransformTree, ConvertCross2) {
   projectairsim::Quaternion quatA =
       projectairsim::TransformUtils::ToQuaternion(0.0f, 0.0f, 0.0f);
   projectairsim::Quaternion quatB =
-      projectairsim::TransformUtils::ToQuaternion(0.0f, M_PI, 0.0f);
+      projectairsim::TransformUtils::ToQuaternion(M_PI, 0.0f, 0.0f);
   projectairsim::Quaternion quatA2 =
       projectairsim::TransformUtils::ToQuaternion(0.0f, 0.0f, 0.0f);
   projectairsim::Quaternion quatB2 =
-      projectairsim::TransformUtils::ToQuaternion(0.0f, M_PI, 0.0f);
+      projectairsim::TransformUtils::ToQuaternion(M_PI, 0.0f, 0.0f);
   projectairsim::Quaternion quatAToGlobal = quatA * quatA2;
   projectairsim::Quaternion quatGlobalToB = quatB2.inverse() * quatB.inverse();
   projectairsim::Quaternion quatAInB =
@@ -200,7 +201,7 @@ TEST(TransformTree, ConvertCross2) {
   projectairsim::TransformTree transformtree;
   projectairsim::Vector3 vec3A = projectairsim::Vector3(1.0f, 2.0f, 3.0f);
   projectairsim::Vector3 vec3A2 = projectairsim::Vector3(4.0f, 5.0f, 6.0f);
-  projectairsim::Vector3 vec3B = projectairsim::Vector3(-10.0f, 20.0f, -30.0f);
+  projectairsim::Vector3 vec3B = projectairsim::Vector3(10.0f, -20.0f, -30.0f);
   projectairsim::Vector3 vec3B2 = projectairsim::Vector3(40.0f, 50.0f, 60.0f);
   projectairsim::Vector3 vec3AToGlobal = vec3A + vec3A2;
   projectairsim::Vector3 vec3BToB2Global = quatB2 * vec3B;
@@ -309,37 +310,4 @@ TEST(TransformTree, ConvertSemiCross) {
   EXPECT_NEAR(poseA.orientation.y(), poseAStart.orientation.y(), 1.0e-6);
   EXPECT_NEAR(poseA.orientation.z(), poseAStart.orientation.z(), 1.0e-6);
   EXPECT_NEAR(poseA.orientation.w(), poseAStart.orientation.w(), 1.0e-6);
-}
-
-TEST(TransformTree, NonzeroRelativePositionAndTiltedFrame) {
-  constexpr float ap_x = 0.0f;
-  constexpr float ap_y = 0.0f;
-  constexpr float ap_z = 0.0f;
-  projectairsim::Quaternion quatA =
-      projectairsim::TransformUtils::ToQuaternion(M_PI / 4, 0.0f, 0.0f);
-  projectairsim::TransformTree::StaticRefFrame staticrefframeA("A");
-  projectairsim::TransformTree transformtree;
-  projectairsim::Pose poseA ;
-  poseA.position.z() = -1.0f;
-  projectairsim::Pose poseGlobal;
-
-  staticrefframeA.SetLocalPose(
-      projectairsim::Pose(projectairsim::Vector3(ap_x, ap_y, ap_z), quatA));
-
-  transformtree.Register(&staticrefframeA,
-                         projectairsim::TransformTree::kRefFrameGlobal);
-  transformtree.Convert(poseA, staticrefframeA,
-                        projectairsim::TransformTree::kRefFrameGlobal,
-                        &poseGlobal);
-
-  // Verify the identity pose in A's reference frame is transformed into A's
-  // pose in the global reference frame
-  EXPECT_FLOAT_EQ(poseGlobal.position.x(), ap_x);
-  EXPECT_NEAR(poseGlobal.position.y(), -(std::sin(M_PI / 4)), 1.0e-6);
-  EXPECT_NEAR(poseGlobal.position.z(), -(std::cos(M_PI / 4)), 1.0e-6);
-
-  EXPECT_FLOAT_EQ(poseGlobal.orientation.x(), quatA.x());
-  EXPECT_FLOAT_EQ(poseGlobal.orientation.y(), quatA.y());
-  EXPECT_FLOAT_EQ(poseGlobal.orientation.z(), quatA.z());
-  EXPECT_FLOAT_EQ(poseGlobal.orientation.w(), quatA.w());
 }

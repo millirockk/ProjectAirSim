@@ -66,6 +66,9 @@ class PayloadActor : public Actor {
   const float GetMass() const;
   void SetMass(const float mass);
 
+  const Kinematics ComputeAttachedKinematics(
+      const Kinematics& kinematics) const;
+
   void BeginUpdate();
   void EndUpdate();
 

@@ -7,6 +7,9 @@
 #include "Eigen/Dense"
 #include "Eigen/Geometry"
 
+#include "Eigen/Dense"
+#include "Eigen/Geometry"
+
 #ifdef _WIN32
 extern "C" void OutputDebugStringA(const char*);
 #else
@@ -41,7 +44,7 @@ TransformTree::~TransformTree() {
 void TransformTree::CombinePose(Pose* ppose_inout, const Pose& pose2) {
   // Rotate the position vector by the orientation of the frame
   auto rotated_position = pose2.orientation * ppose_inout->position;
-  // Translate the position to the position of frame to get the broader position
+  // translate the position to the position of frame to get the broader position
   ppose_inout->position = pose2.position + rotated_position;
   ppose_inout->orientation = ppose_inout->orientation * pose2.orientation;
 }
