@@ -185,11 +185,11 @@ TEST(TransformTree, ConvertCross2) {
   projectairsim::Quaternion quatA =
       projectairsim::TransformUtils::ToQuaternion(0.0f, 0.0f, 0.0f);
   projectairsim::Quaternion quatB =
-      projectairsim::TransformUtils::ToQuaternion(M_PI, 0.0f, 0.0f);
+      projectairsim::TransformUtils::ToQuaternion(0.0f, M_PI, 0.0f);
   projectairsim::Quaternion quatA2 =
       projectairsim::TransformUtils::ToQuaternion(0.0f, 0.0f, 0.0f);
   projectairsim::Quaternion quatB2 =
-      projectairsim::TransformUtils::ToQuaternion(M_PI, 0.0f, 0.0f);
+      projectairsim::TransformUtils::ToQuaternion(0.0f, M_PI, 0.0f);
   projectairsim::Quaternion quatAToGlobal = quatA * quatA2;
   projectairsim::Quaternion quatGlobalToB = quatB2.inverse() * quatB.inverse();
   projectairsim::Quaternion quatAInB =
@@ -201,7 +201,7 @@ TEST(TransformTree, ConvertCross2) {
   projectairsim::TransformTree transformtree;
   projectairsim::Vector3 vec3A = projectairsim::Vector3(1.0f, 2.0f, 3.0f);
   projectairsim::Vector3 vec3A2 = projectairsim::Vector3(4.0f, 5.0f, 6.0f);
-  projectairsim::Vector3 vec3B = projectairsim::Vector3(10.0f, -20.0f, -30.0f);
+  projectairsim::Vector3 vec3B = projectairsim::Vector3(-10.0f, 20.0f, -30.0f);
   projectairsim::Vector3 vec3B2 = projectairsim::Vector3(40.0f, 50.0f, 60.0f);
   projectairsim::Vector3 vec3AToGlobal = vec3A + vec3A2;
   projectairsim::Vector3 vec3BToB2Global = quatB2 * vec3B;

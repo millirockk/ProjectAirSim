@@ -26,6 +26,9 @@ TEST(TransformUtils, ToQuaternion) {
   constexpr float t1_roll = projectairsim::TransformUtils::kEulerSingularityMinor;
   constexpr float t1_pitch = projectairsim::TransformUtils::kEulerSingularityMinor;
   constexpr float t1_yaw = projectairsim::TransformUtils::kEulerSingularityMinor;
+  constexpr float t1_roll = projectairsim::TransformUtils::kEulerSingularityMinor;
+  constexpr float t1_pitch = projectairsim::TransformUtils::kEulerSingularityMinor;
+  constexpr float t1_yaw = projectairsim::TransformUtils::kEulerSingularityMinor;
   constexpr float a1_w = 0.7071075f;
   constexpr float a1_x = 0.000617057f;
   constexpr float a1_y = 0.7071054f;
@@ -60,9 +63,9 @@ TEST(TransformUtils, ToQuaternion) {
   constexpr float t1b_pitch = projectairsim::TransformUtils::kEulerSingularityMajor;
   constexpr float t1b_yaw = projectairsim::TransformUtils::kEulerSingularityMajor;
   constexpr float a1b_w = 0.7071075f;
-  constexpr float a1b_x = -0.00061708689f;
+  constexpr float a1b_x = -0.00061705709f;
   constexpr float a1b_y = 0.7071054f;
-  constexpr float a1b_z = -0.00061708689f;
+  constexpr float a1b_z = -0.00061705709f;
 
   q = projectairsim::TransformUtils::ToQuaternion(t1b_roll, t1b_pitch, t1b_yaw);
 
@@ -124,9 +127,9 @@ TEST(TransformUtils, ToQuaternion) {
   constexpr float t3b_roll = -projectairsim::TransformUtils::kEulerSingularityMajor;
   constexpr float t3b_pitch = -projectairsim::TransformUtils::kEulerSingularityMajor;
   constexpr float t3b_yaw = -projectairsim::TransformUtils::kEulerSingularityMajor;
-  constexpr float a3b_w = -0.0018512607f;
+  constexpr float a3b_w = -0.0018511415f;
   constexpr float a3b_x = -0.7071054f;
-  constexpr float a3b_y = 0.00061711669f;
+  constexpr float a3b_y = 0.00061705709f;
   constexpr float a3b_z = -0.7071054f;
 
   q = projectairsim::TransformUtils::ToQuaternion(t3b_roll, t3b_pitch, t3b_yaw);

@@ -22,7 +22,7 @@ Quaternion TransformUtils::ToQuaternion(float roll_rad, float pitch_rad,
 
   if (std::abs(pitch_rad) > TransformUtils::kEulerSingularityMinor &&
       std::abs(pitch_rad) < TransformUtils::kEulerSingularityMajor) {
-    // TODO Trigger a warning for clipped pitch angle
+    // TODO(edufford) Trigger a warning for clipped pitch angle
     if (std::abs(pitch_rad) < M_PI/2)
       pitch_rad = std::clamp(pitch_rad, -TransformUtils::kEulerSingularityMinor,
                            TransformUtils::kEulerSingularityMinor);
