@@ -1,5 +1,7 @@
 """
-Copyright (C) Microsoft Corporation. All rights reserved.
+Copyright (C) Microsoft Corporation. 
+Copyright (C) 2025 IAMAI CONSULTING CORP
+MIT License.
 
 Utility classes for using a input controller such as an Xbox game
 controller as a remote control for an Project AirSim flight controller

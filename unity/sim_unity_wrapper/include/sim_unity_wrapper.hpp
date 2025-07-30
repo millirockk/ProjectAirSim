@@ -1,4 +1,7 @@
-// Copyright (C) Microsoft Corporation. All rights reserved.
+// Copyright (C) Microsoft Corporation. 
+// Copyright (C) 2025 IAMAI CONSULTING CORP
+
+// MIT License. All rights reserved.
 
 #ifndef UNITY_SIM_UNITY_WRAPPER_INCLUDE_SIM_UNITY_WRAPPER_HPP_
 #define UNITY_SIM_UNITY_WRAPPER_INCLUDE_SIM_UNITY_WRAPPER_HPP_

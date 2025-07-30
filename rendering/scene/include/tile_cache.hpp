@@ -1,4 +1,7 @@
-// Copyright (C) Microsoft Corporation. All rights reserved.
+// Copyright (C) Microsoft Corporation. 
+// Copyright (C) 2025 IAMAI CONSULTING CORP
+
+// MIT License. All rights reserved.
 
 #ifndef RENDERING_SCENE_INCLUDE_TILE_CACHE_HPP_
 #define RENDERING_SCENE_INCLUDE_TILE_CACHE_HPP_

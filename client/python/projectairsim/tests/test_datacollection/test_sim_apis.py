@@ -1,5 +1,7 @@
 """
-Copyright (C) Microsoft Corporation. All rights reserved.
+Copyright (C) Microsoft Corporation. 
+Copyright (C) 2025 IAMAI CONSULTING CORP
+MIT License.
 End-to-end tests for ProjectAirSim Services, request-response APIs used by the data collection module
 """
 import random

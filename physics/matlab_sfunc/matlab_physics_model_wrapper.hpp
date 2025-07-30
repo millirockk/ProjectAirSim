@@ -1,4 +1,7 @@
-// Copyright (C) Microsoft Corporation. All rights reserved.
+// Copyright (C) Microsoft Corporation. 
+// Copyright (C) 2025 IAMAI CONSULTING CORP
+
+// MIT License. All rights reserved.
 
 #ifndef MATLAB_PHYSICS_MODEL_WRAPPER_HPP
 #define MATLAB_PHYSICS_MODEL_WRAPPER_HPP

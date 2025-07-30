@@ -1,5 +1,7 @@
 """
-Copyright (C) Microsoft Corporation. All rights reserved.
+Copyright (C) Microsoft Corporation. 
+Copyright (C) 2025 IAMAI CONSULTING CORP
+MIT License.
 
 This script implements the DataGenerator class. This class acts as
 the tool develops will use to interact with the datacollection module. This class implements basics

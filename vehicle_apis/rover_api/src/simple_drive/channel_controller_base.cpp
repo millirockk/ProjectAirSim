@@ -1,4 +1,7 @@
-// Copyright (C) Microsoft Corporation. All rights reserved.
+// Copyright (C) Microsoft Corporation. 
+// Copyright (C) 2025 IAMAI CONSULTING CORP
+
+// MIT License. All rights reserved.
 
 #include <simple_drive/channel_controller_base.hpp>
 

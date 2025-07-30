@@ -1,5 +1,7 @@
 """
-Copyright (C) Microsoft Corporation. All rights reserved.
+Copyright (C) Microsoft Corporation. 
+Copyright (C) 2025 IAMAI CONSULTING CORP
+MIT License.
 
 Demonstrates keyboard-controlling a non-physics drone. The script allows for the path
 of the drone to be saved as poses to a CSV file.

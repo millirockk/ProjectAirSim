@@ -1,5 +1,7 @@
 """
-Copyright (C) Microsoft Corporation. All rights reserved.
+Copyright (C) Microsoft Corporation. 
+Copyright (C) 2025 IAMAI CONSULTING CORP
+MIT License.
 
 London UAM Demo Script.
 Uses 2D Landing Pad Detection Autonomy Block to detect landing pads in the scene and

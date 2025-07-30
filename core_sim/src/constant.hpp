@@ -1,4 +1,7 @@
-// Copyright (C) Microsoft Corporation. All rights reserved.
+// Copyright (C) Microsoft Corporation. 
+// Copyright (C) 2025 IAMAI CONSULTING CORP
+
+// MIT License. All rights reserved.
 
 #ifndef CORE_SIM__SIM_SRC_CONSTANT_HPP_
 #define CORE_SIM__SIM_SRC_CONSTANT_HPP_

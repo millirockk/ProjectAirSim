@@ -1,4 +1,7 @@
-REM Copyright (C) Microsoft Corporation. All rights reserved.
+REM Copyright (C) Microsoft Corporation. 
+REM Copyright (C) 2025 IAMAI CONSULTING CORP
+
+REM MIT License.
 
 @echo off
 if "%UE_ROOT%" == "" (

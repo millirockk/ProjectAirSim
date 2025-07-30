@@ -1,4 +1,7 @@
-// Copyright (C) Microsoft Corporation. All rights reserved.
+// Copyright (C) Microsoft Corporation. 
+// Copyright (C) 2025 IAMAI CONSULTING CORP
+
+// MIT License. All rights reserved.
 
 #ifndef MULTIROTOR_API_INCLUDE_MESSAGE_CONTROL_MODEL_OUTPUT_MESSAGE_HPP_
 #define MULTIROTOR_API_INCLUDE_MESSAGE_CONTROL_MODEL_OUTPUT_MESSAGE_HPP_

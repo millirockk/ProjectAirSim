@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
-Copyright (C) Microsoft Corporation. All rights reserved.
+Copyright (C) Microsoft Corporation. 
+Copyright (C) 2025 IAMAI CONSULTING CORP
+MIT License.
 
 Demo client script for navigating a 3D occupancy map
 loaded from a file using the Project AirSim ROS bridge, and
