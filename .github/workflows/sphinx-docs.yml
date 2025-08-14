@@ -14,6 +14,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Strip "docs/" prefixes from README
+        run: sed -i 's|docs/||g' README.md
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -27,16 +30,19 @@ jobs:
 
       - name: Install dependencies for Python client docs
         working-directory: ./client/python/projectairsim/docs
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
       - name: Build Python client docs
         working-directory: ./client/python/projectairsim/docs
-        run: make html
+        run: |
+          rm -rf build
+          make html
 
       - name: Build main docs
         working-directory: ./docs
-        run: make html
+        run: |
+          rm -rf build
+          make html
 
       - name: Copy Python client docs into main docs
         run: |
