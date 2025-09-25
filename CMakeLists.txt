@@ -323,6 +323,7 @@ FetchContent_Declare(
     URL_HASH             ${onnx_hash} # from PowerShell: CertUtil -hashfile json.hpp MD5
     DOWNLOAD_NO_PROGRESS True
     DOWNLOAD_DIR         ${CMAKE_BINARY_DIR}/_deps/onnxruntime-download
+    DOWNLOAD_EXTRACT_TIMESTAMP True
 )
 FetchContent_GetProperties(onnxruntime)
 
